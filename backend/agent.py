@@ -86,7 +86,7 @@ class ChatAgentManager:
         """
         Processes a user message and returns the complete text response.
         """
-        api_key = config.GOOGLE_API_KEY or os.environ.get("GOOGLE_API_KEY", "")
+        api_key = config.GOOGLE_API_KEY
         if not api_key:
             return (
                 "⚠️ API key is missing. Please set `GOOGLE_API_KEY` in the `.env` file "
