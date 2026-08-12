@@ -1,0 +1,29 @@
+# Environment variables & Credentials
+.env
+.env.local
+.env.*.local
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.pytest_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.pnpm-debug.log*
+.yarn-debug.log*
+.yarn-error.log*
+
+# System & IDE
+.DS_Store
+.vscode/
+.idea/
