@@ -97,31 +97,31 @@ class ChatAgentManager:
         if ADK_AVAILABLE and self.runner:
             try:
                 await self.get_or_create_session(session_id=session_id, user_id=user_id)
-                # ADK runner execution
                 response_text = ""
                 # Execute agent via runner
-                events = await self.runner.run(
+                run_res = self.runner.run(
                     user_id=user_id,
                     session_id=session_id,
                     new_message=prompt
                 )
+                events = await run_res if asyncio.iscoroutine(run_res) else run_res
+
                 if isinstance(events, str):
                     return events
-                
-                # Iterate events if generator / iterable
-                if hasattr(events, "__iter__") or hasattr(events, "__aiter__"):
-                    if hasattr(events, "__aiter__"):
-                        async for event in events:
-                            if hasattr(event, "content") and event.content:
-                                response_text += str(event.content)
-                            elif hasattr(event, "text"):
-                                response_text += str(event.text)
-                    else:
-                        for event in events:
-                            if hasattr(event, "content") and event.content:
-                                response_text += str(event.content)
-                            elif hasattr(event, "text"):
-                                response_text += str(event.text)
+
+                if hasattr(events, "__aiter__"):
+                    async for event in events:
+                        if hasattr(event, "content") and event.content:
+                            response_text += str(event.content)
+                        elif hasattr(event, "text"):
+                            response_text += str(event.text)
+                elif hasattr(events, "__iter__"):
+                    for event in events:
+                        if hasattr(event, "content") and event.content:
+                            response_text += str(event.content)
+                        elif hasattr(event, "text"):
+                            response_text += str(event.text)
+
                 if response_text:
                     return response_text
             except Exception as e:
