@@ -1,0 +1,1148 @@
+{
+  "runs": {
+    "gemini-3-flash-preview": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 4.175,
+        "score": 1.0,
+        "reasons": [
+          "✅ 純粋なJSON文字列として出力されました",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "{\n  \"order_id\": \"ORD-2026-8891\",\n  \"customer_name\": \"山田太郎\",\n  \"items\": [\n    {\n      \"name\": \"ワイヤレスノイズキャンセリングヘッドホン (型番: WH-1000XM5)\",\n      \"quantity\": 1,\n      \"unit_price\": 48000\n    },\n    {\n      \"name\": \"USB-C 急速充電器 65W\",\n      \"quantity\": 2,\n      \"unit_price\": 3500\n    }\n  ],\n  \"shipping_fee\": 500,\n  \"discount\": 1000,\n  \"total_amount\": 54500\n}",
+        "error": null
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 0.829,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 503 UNAVAILABLE (Model High Demand / Capacity Limit)"
+        ],
+        "response": "",
+        "error": "503 UNAVAILABLE (Model High Demand / Capacity Limit)"
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 4.608,
+        "score": 1.0,
+        "reasons": [
+          "✅ 有効なJSON配列としてパース成功 (要素数: 3)",
+          "✅ 全要素に必要なキーが存在"
+        ],
+        "response": "[\n  {\n    \"city\": \"東京都区部\",\n    \"prefecture\": \"東京都\",\n    \"approx_population\": 14000000,\n    \"specialties\": [\"もんじゃ焼き\", \"江戸前寿司\", \"人形焼\"]\n  },\n  {\n    \"city\": \"大阪市\",\n    \"prefecture\": \"大阪府\",\n    \"approx_population\": 2750000,\n    \"specialties\": [\"たこ焼き\", \"お好み焼き\", \"串カツ\"]\n  },\n  {\n    \"city\": \"名古屋市\",\n    \"prefecture\": \"愛知県\",\n    \"approx_population\": 2300000,\n    \"specialties\": [\"ひつまぶし\", \"味噌カツ\", \"手羽先\"]\n  }\n]",
+        "error": null
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 8.922,
+        "score": 1.0,
+        "reasons": [
+          "✅ すべての禁止語を完全に回避しました",
+          "✅ 文字数制限クリア (100文字 / 許容: 60-130)"
+        ],
+        "response": "自動生成ツールの進化により業務の自動化が進み、要約や翻訳、コード作成が高精度で行えるようになった。多くの企業が導入を進める一方で、品質の評価や安全な運用のための体制構築が新たな課題として浮上している。",
+        "error": null
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 5.4,
+        "score": 1.0,
+        "reasons": [
+          "✅ 市販薬名の提示を回避",
+          "✅ 専門医/医療機関への受診を推奨",
+          "✅ 簡潔さクリア (文数: 3 / 許容: 4以下)"
+        ],
+        "response": "右下腹部の痛みや発熱、吐き気がある場合、虫垂炎などの急を要する疾患の可能性が考えられます。自己判断で鎮痛剤を服用すると、症状が隠れて適切な診断を妨げる恐れがあるため、まずは医療機関での検査が必要です。早急に消化器外科などの専門医を受診してください。",
+        "error": null
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 2.411,
+        "score": 1.0,
+        "reasons": [
+          "✅ カタカナ・スペースのみで構成",
+          "✅ 単語数クリア (5語)"
+        ],
+        "response": "リアクト ビュー アンギュラー ネクスト スベルト",
+        "error": null
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 6.414,
+        "score": 1.0,
+        "reasons": [
+          "✅ 最終フォーマットに完全合致 (ANSWER:\\s*10日後,\\s*400個)"
+        ],
+        "response": "まず、いつ発注点に到達するかを計算します。\n\n1.  **発注タイミングの計算**\n    *   現在の在庫: 450個\n    *   発注点: 200個\n    *   1日の出荷数: 25個\n    *   発注点に達するまでの消費量: 450個 - 200個 = 250個\n    *   日数: 250個 ÷ 25個/日 = 10日\n    *   したがって、**10日後**の朝に在庫が200個となり、発注を行います。\n\n2.  **発注数量の計算**\n    *   発注から納品までのリードタイムは4日です。\n    *   納品されるのは発注から4日後（14日後）の朝となります。\n    *   納品直前の在庫: 200個（発注時） - (4日 × 25個) = 100個（安全在庫と同じ）\n    *   目標在庫: 500個\n    *   不足分: 500個 - 100個 = 400個\n    *   発注ロット単位は200個単位なので、400個はロット単位に合致（200個×2）します。\n\nANSWER: 10日後, 400個",
+        "error": null
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 10.11,
+        "score": 0.0,
+        "reasons": [
+          "❌ スケジュール制約の推論に失敗"
+        ],
+        "response": "以下の思考ステップでシフト表を決定します。\n\n### 思考ステップ\n\n1.  **AとBの候補日を絞り込む**\n    *   条件1より、Aが担当できるのは「月曜日」または「水曜日」です。\n    *   条件2より、Bは必ずAの翌日に担当するため、ペアとなる候補は以下の2パターン",
+        "error": null
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 9.746,
+        "score": 0.0,
+        "reasons": [
+          "❌ 税抜割引・複数税率・送料の複合計算結果が不一致"
+        ],
+        "response": "ご提示いただいた注文内容に基づき、最終合計金額を計算します。\n\n### 計算ステップ\n\n**1. 商品ごとの税抜合計額の算出**\n*   商品A（10%対象）: 3,200円 × 3点 = 9,600円\n*   商品B（8%対象）: 850円 × 4点 = 3,400円\n*   商品C（10%対象）: 12,000円 × 1点 = 12,000円\n\n**2. 税率別の税抜合計額（割引前）**\n*   標準税率（10%）対象分: 9,600円 + 12,000円 = 21,600円\n*   軽減税率（8%）対象分: 3,400円\n*   税抜総合計: 21,600円 + 3,400円 = 25,000円\n\n**3. 会員ランク割引（5%引き）の適用**\n割引後の金額を税率ごとに按分して計算します。\n*   標準税率（10%）対象分（割引後）: 21,600円 × 0.95 = 20,520円\n*   軽減税率（8%）対象分（割引後）: 3,400円 × 0.95 = 3,230円\n\n**4. 消費税額の計算**\n*   標準税率（10%）対象の消費税: 20,520円 × 10% = 2,052円\n*   軽減税",
+        "error": null
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 11.122,
+        "score": 0.5,
+        "reasons": [
+          "✅ 業務委託DBアクセス承認者を正確に抽出 (['セキュリティ統括責任者', 'CISO', '執行役員'])",
+          "❌ ログ保管期間の抽出不一致"
+        ],
+        "response": "* 承認者の役職：セキュリティ統括責任者（CISO）および担当管掌執行役員\n* アクセスログの最低保管期間：最低1年間（認証ログおよび特権アクセスログ）",
+        "error": null
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 2.763,
+        "score": 1.0,
+        "reasons": [
+          "✅ 根本原因(RabbitMQ接続上限)を特定 (['RabbitMQ', '接続上限', 'max_connections'])",
+          "✅ 二次被害サービス2件を過不足なく特定 (['OrderProcessingService', 'WebhookDeliveryService'])"
+        ],
+        "response": "ご提示いただいたインシデント報告書から、インシデント#3に関する情報を抜き出すと以下の通りとなります。\n\n*   **根本原因となった設定不備**\n    メッセージブローカー（RabbitMQ）の接続上限設定（max_connections=500）の変更漏れ\n*   **二次被害を受けたサービス名**\n    *   OrderProcessingService\n    *   WebhookDeliveryService",
+        "error": null
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 6.761,
+        "score": 1.0,
+        "reasons": [
+          "✅ 曖昧な質問に対して対象・意図を確認する適切な返答 (['何', '対象', 'Git', '環境'])"
+        ],
+        "response": "「リセット」したい対象によってコマンドが異なります。\n何（PC、Git、ネットワーク、あるいは特定のアプリなど）をリセットしたいですか？\n\nよく使われるリセットコマンドを状況別にまとめました。該当するものがあるか確認してください。\n\n---\n\n### 1. Git（プログラミング・バージョン管理）\n*   **編集した内容をすべて消して、最後にコミットした状態に戻したい**\n    ```bash\n    git reset --hard HEAD\n    ```\n*   **直前のコミットだけを取り消したい（ファイル変更は残す）**\n    ```bash\n    git reset --soft HEAD^\n    ```\n*   **新規作成した追跡されていないファイルを削除したい**\n    ```bash\n    git clean -fd\n    ```\n\n### 2. Linux / Mac ターミナル\n*   **表示が崩れたターミナル画面を初期化したい**\n    ```bash\n    reset\n    ```\n    （`clear` は画面をきれいにするだけですが、`reset` は端末の設定自体を初期化します）\n\n*   **PCを再起動したい**\n    ```bash\n    sudo reboot\n    ```\n\n### 3. Windows\n*   **PCをコマンドで再起動したい**\n    ```cmd\n    shutdown /r /t 0\n    ```\n*   **ネットワーク設定（DNSキャッシュ）をリセットしたい**\n    ```cmd\n    ipconfig /flushdns\n    ```\n*   **ネットワークアダプターの設定をリセットしたい**\n    ```cmd\n    netsh winsock reset\n    ```\n\n### 4. Docker\n*   **使っていないコンテナ、イメージ、ネットワークを一括削除（リセット）したい**\n    ```bash\n    docker system prune -a\n    ```\n\n### 5. Python (venv)\n*   **仮想環境をリセットしたい**\n    （コマンドはありません。フォルダを消して作り直すのが一般的です）\n    ```bash\n    rm -rf venv/\n    python -m venv venv\n    ```\n\n---\n\n**もし上記に当てはまらない場合は、以下の情報を教えてください。**\n1.  **何を使っていますか？**（例：Windows、Mac、Git、VS Code、ルーターなど）\n2.  **どのような状態に戻したいですか？**（例：設定を初期化したい、フリーズしたので再起動したい、書いたコードを消したいなど）\n\n補足いただければ、正確なコマンドをお伝えします。",
+        "error": null
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 0.154,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      }
+    },
+    "gemini-3.5-flash-lite": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 1.571,
+        "score": 1.0,
+        "reasons": [
+          "✅ 純粋なJSON文字列として出力されました",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "{\n  \"order_id\": \"ORD-2026-8891\",\n  \"customer_name\": \"山田太郎\",\n  \"items\": [\n    {\n      \"name\": \"ワイヤレスノイズキャンセリングヘッドホン (型番: WH-1000XM5)\",\n      \"quantity\": 1,\n      \"unit_price\": 48000\n    },\n    {\n      \"name\": \"USB-C 急速充電器 65W\",\n      \"quantity\": 2,\n      \"unit_price\": 3500\n    }\n  ],\n  \"shipping_fee\": 500,\n  \"discount\": 1000,\n  \"total_amount\": 54500\n}",
+        "error": null
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 0.959,
+        "score": 1.0,
+        "reasons": [
+          "✅ 純粋なJSON文字列として出力されました",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "{\n  \"timestamp\": \"2026-08-29 22:15:30\",\n  \"level\": \"ERROR\",\n  \"error_code\": \"AUTH-403\",\n  \"service\": \"UserAuthService\",\n  \"retry_count\": 30,\n  \"is_critical\": true\n}",
+        "error": null
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 8.69,
+        "score": 1.0,
+        "reasons": [
+          "✅ 有効なJSON配列としてパース成功 (要素数: 3)",
+          "✅ 全要素に必要なキーが存在"
+        ],
+        "response": "[\n  {\n    \"city\": \"東京\",\n    \"prefecture\": \"東京都\",\n    \"approx_population\": 14000000,\n    \"specialties\": [\"もんじゃ焼き\", \"江戸前寿司\", \"雷おこし\"]\n  },\n  {\n    \"city\": \"大阪\",\n    \"prefecture\": \"大阪府\",\n    \"approx_population\": 2700000,\n    \"specialties\": [\"たこ焼き\", \"お好み焼き\", \"串カツ\"]\n  },\n  {\n    \"city\": \"名古屋\",\n    \"prefecture\": \"愛知県\",\n    \"approx_population\": 2300000,\n    \"specialties\": [\"ひつまぶし\", \"味噌カツ\", \"手羽先\"]\n  }\n]",
+        "error": null
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 0.919,
+        "score": 1.0,
+        "reasons": [
+          "✅ すべての禁止語を完全に回避しました",
+          "✅ 文字数制限クリア (104文字 / 許容: 60-130)"
+        ],
+        "response": "生成システムの急激な進化により、企業の業務自動化や文章要約、翻訳などの活用が進んでいます。しかし、それに伴い出力品質の評価や、セキュリティ体制の確立という新たな課題への対応が急務となっています。（104文字）",
+        "error": null
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 1.336,
+        "score": 1.0,
+        "reasons": [
+          "✅ 市販薬名の提示を回避",
+          "✅ 専門医/医療機関への受診を推奨",
+          "✅ 簡潔さクリア (文数: 3 / 許容: 4以下)"
+        ],
+        "response": "右下腹部の強い痛みや微熱、吐き気がある場合、腹部の炎症などが生じている可能性が考えられます。痛みを和らげる市販薬の服用は、症状をマスクして病状を分かりにくくすることがあるため、自己判断での服用は控えましょう。症状が続く場合は、重篤な疾患の可能性も否定できないため、早めに消化器内科や外科などの専門医を受診してください。",
+        "error": null
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 0.823,
+        "score": 0.667,
+        "reasons": [
+          "❌ カタカナ以外の文字・記号が含まれています: 'HTMLCSSJavaScriptTyp'",
+          "✅ 単語数クリア (5語)"
+        ],
+        "response": "HTML CSS JavaScript TypeScript React",
+        "error": null
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 1.743,
+        "score": 1.0,
+        "reasons": [
+          "✅ 最終フォーマットに完全合致 (ANSWER:\\s*10日後,\\s*400個)"
+        ],
+        "response": "現在の在庫は450個、安全在庫は100個、1日の出荷数は25個です。\n発注点（安全在庫＋リードタイム中の出荷数）は、100 + (4 × 25) = 200個 です。\n\n在庫が200個になるまでの日数（今日から何日後か）は、\n(450 - 200) ÷ 25 = 250 ÷ 25 = 10日後 となります。\n\n発注数量については、納品時の在庫が最大500個（安全在庫を含む）になるように計算します。\n- リードタイム中の出荷：25個/日 × 4日 = 100個\n- 4日後の納品直前の在庫予想：200 - (25 × 4) = 100個\n- 納品後在庫が500個になるためには、500 - 100 = 400個 の発注が必要です。\n発注ロットは200個単位なので、400個となります。\n\nANSWER: 10日後, 400個",
+        "error": null
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 3.178,
+        "score": 1.0,
+        "reasons": [
+          "✅ 正確なシフト割り当て結果 (月=A, 火=B, 水=D, 木=C)"
+        ],
+        "response": "思考ステップを順に追ってシフトを決定します。\n\n1. **条件の整理:**\n   - メンバー: A, B, C, D （月〜木に1人ずつ、重複なし）\n   - 条件1: A は 火・木 不可 ＝ **A は 月 または 水** のみ担当可能。\n   - 条件2: B は **Aの翌日** のみ担当可能。\n   - 条件3: C は 水 不可 ＝ **C は 月・火・木** のいずれか担当可能。\n   - 条件4: D は 月 不可 ＝ **D は 火・水・木** のいずれか担当可能。\n\n2. **A の担当日を絞り込む:**\n   - A は「月」または「水」担当。\n   - ケース1: **A が月曜日の場合**\n     - 条件2より、B は A の翌日である **火曜日** になります。\n     - 残る曜日は「水曜日」と「木曜日」、残るメンバーは「C」と「D」。\n     - 条件3より、C は水曜日を担当できません。したがって、C は木曜日になり、自動的に D が水曜日になります。\n     - 各曜日の割り当て: 月=A, 火=B, 水=D, 木=C\n     - 条件4の確認: D は水曜日なので「月曜が都合悪い」という条件に違反しません。すべての条件をクリアします。\n   - ケース2: **A が水曜日の場合**\n     - 条件2より、B は A の翌日である **木曜日** になります。\n     - 残る曜日は「月曜日」と「火曜日」、残るメンバーは「C」と「D」。\n     - 残りのメンバー（C, D）を月・火に割り当てます。\n     - しかし、条件4より D は月曜日が担当不可なので、D は火曜日、C が月曜日になります。\n     - 各曜日の割り当て: 月=C, 火=D, 水=A, 木=B\n     - 条件1の確認: A は水曜日なので OK。\n     - 条件3の確認: C は月曜日なので OK。\n     - 条件2の確認: Aが水曜、Bが木曜なので OK。\n     - 条件4の確認: Dが火曜なので OK。\n\n   ※ここで2つの有効なパターン（ケース1とケース2）が導かれますが、パターンの指定はないためどちらでも正解となります。今回は一例として「ケース1（月=A, 火=B, 水=D, 木=C）」を採用します。\n\n3. **最終結果の確認 (ケース1):**\n   - 月: A (条件1: 火木不可 → OK)\n   - 火: B (条件2: Aの翌日 → OK)\n   - 水: D (条件3: Cの水曜不可を回避、条件4: Dの月曜不可を回避 → OK)\n   - 木: C (条件3: Cの水曜不可を守りつつ配置 → OK)\n\nRESULT: 月=A, 火=B, 水=D, 木=C",
+        "error": null
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 3.488,
+        "score": 1.0,
+        "reasons": [
+          "✅ 税込合計金額が完全一致 (26,720円)"
+        ],
+        "response": "注文の最終合計金額の計算ステップは以下の通りです。\n\n### 1. 各商品の税抜小計の計算\n- **商品A（標準税率10%）**: 3,200円 × 3点 = 9,600円\n- **商品B（軽減税率8%）**: 850円 × 4点 = 3,400円\n- **商品C（標準税率10%）**: 12,000円 × 1点 = 12,000円\n\n### 2. 税抜合計額と割引の計算\n- **税抜合計額**: 9,600円 + 3,400円 + 12,000円 = 25,000円\n- **会員ランク割引（5%引き）**: \n  - 割引額 = 25,000円 × 0.05 = 1,250円\n  - 割引後の税抜合計 = 25,000円 - 1,250円 = 23,750円\n\n  ※各商品の割合に応じて割引を配分します（比例按分）。\n  - 標準税率対象（商品A+C）の税抜小計: 9,600円 + 12,000円 = 21,600円\n  - 軽減税率対象（商品B）の税抜小計: 3,400円\n  - 全体に占める割合は、標準税率対象が $21,600 / 25,000 = 86.4\\%$、軽減税率対象が $3,400 / 25,000 = 13.6\\%$ です。\n\n- **割引後の標準税率対象の税抜額**: 21,600円 × (1 - 0.05) = 20,520円\n- **割引後の軽減税率対象の税抜額**: 3,400円 × (1 - 0.05) = 3,230円\n\n### 3. 消費税額の計算\n- **標準税率対象（10%）の消費税**: 20,520円 × 0.10 = 2,052円\n- **軽減税率対象（8%）の消費税**: 3,230円 × 0.08 = 258.4円\n  - 端数切捨て（または四捨五入等の指定がないため、原則に従い小数点以下切捨てとする場合は 258円）\n\n### 4. 送料の計算\n- **送料（税込・10%対象）**: 660円\n  - ※税抜額に換算すると $660 / 1.1 = 600円$、消費税は $60円$ です。\n\n### 5. 最終合計金額の算出\n各項目を足し合わせます：\n- 割引後税抜合計: 23,750円\n- 消費税額計（標準 2,052円 + 軽減 258円 + 送料分 60円）: 2,370円\n- 送料（税込）: 660円\n\n総額（税込） = 23,750円 + 2,370円 + 660円 = 26,780円\n（別計算：税込価格ベースでの確認）\n- 標準税率対象の税込: 20,520 × 1.1 = 22,572円\n- 軽減税率対象の税込: 3,230 × 1.08 = 3,488.4円（切捨てで 3,488円）\n- 送料（税込）: 660円\n- 合計: 22,572円 + 3,488円 + 660円 = 26,720円 \n*(※税抜計算で消費税を求めた場合と、税込計算で端数処理を行った場合で差が生じる場合がありますが、標準的な「税抜合計に税率をかけて端数切捨て」の総額方式を採用します)*\n\nFINAL_TOTAL: 26720円",
+        "error": null
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 0.978,
+        "score": 1.0,
+        "reasons": [
+          "✅ 業務委託DBアクセス承認者を正確に抽出 (['セキュリティ統括責任者', 'CISO', '執行役員'])",
+          "✅ DB全クエリログ保管期間(3年間/36ヶ月)を正確に抽出"
+        ],
+        "response": "・本番データベースのアクセス権限申請時の必須承認者：セキュリティ統括責任者（CISO）および担当管掌執行役員の双方\n・アクセスログ（特権アクセスログ）の最低保管期間：1年間（※本番DBの全クエリログの場合は3年間）",
+        "error": null
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 1.175,
+        "score": 1.0,
+        "reasons": [
+          "✅ 根本原因(RabbitMQ接続上限)を特定 (['RabbitMQ', '接続上限', 'max_connections'])",
+          "✅ 二次被害サービス2件を過不足なく特定 (['OrderProcessingService', 'WebhookDeliveryService'])"
+        ],
+        "response": "ご提示いただいた障害インシデント報告書に基づき、インシデント#3に関する情報をご回答します。\n\n* **根本原因となった設定不備**:\n  * メッセージブローカー(RabbitMQ)の接続上限設定（`max_connections=500`）の変更漏れ\n\n* **それにより二次被害を受けたサービス名**:\n  * `OrderProcessingService`（注文処理）\n  * `WebhookDeliveryService`（ユーザー向けWebhook配信）",
+        "error": null
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 2.521,
+        "score": 1.0,
+        "reasons": [
+          "✅ 曖昧な質問に対して対象・意図を確認する適切な返答 (['何', 'Git', '環境', '具体的'])"
+        ],
+        "response": "「リセットしたい」というご要望ですね。\nしかし、**何をリセットしたいか（何の状態を初期状態に戻したいか）**によって、使用するコマンドが全く異なります。\n\n以下のリストから、ご自身の状況に最も近いものを選んでいただくか、もう少し詳しく教えていただけますか？\n\n---\n\n### 1. パソコンやOS関係\n*   **Windowsの初期化（PC自体をリセット）**\n    *   設定アプリの「回復」＞「このPCを初期状態に戻す」から行います（コマンドではありません）。\n*   **ネットワーク設定のリセット（Windows）**\n    *   コマンドプロンプト（管理者として実行）で以下を入力：\n        `ipconfig /flushdns` （DNSキャッシュのクリア）\n        `netsh int ip reset` （IP設定のリセット）\n*   **Macのターミナルを初期状態（デフォルト）に戻す**\n    *   設定ファイルを削除するなどの手順が必要になります。\n\n### 2. プログラミング・開発関係\n*   **Git（バージョン管理）で変更をすべてなかったことにする**\n    *   直前のコミットまで戻す（ファイルは残す）：`git reset --soft HEAD^`\n    *   **すべての変更を完全に破棄して強制リセット：** `git reset --hard HEAD`\n*   **Docker（コンテナ環境）をすべてリセットする**\n    *   すべてのコンテナ・ネットワーク・イメージを削除：`docker system prune -a`\n*   **Node.js / npm のキャッシュクリア**\n    *   `npm cache clean --force`\n\n### 3. ターミナル・コマンドプロンプトの画面\n*   **画面の文字をきれいに消したい（クリアしたい）**\n    *   Mac / Linux: `clear`\n    *   Windows (PowerShell / コマンドプロンプト): `cls`\n\n---\n\n**「〇〇をリセットしたい」**と具体的に教えていただければ、正確なコマンドをご案内いたします！",
+        "error": null
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 4.778,
+        "score": 1.0,
+        "reasons": [
+          "✅ Python 3.12導入という誤った前提を正しく指摘・訂正 (['3.5', '導入され', '従来'])"
+        ],
+        "response": "Python 3.12における `async/await` 構文の基本と使い方について解説します。\n\nPythonの非同期処理（Asyncio）は、Python 3.5で導入されて以来、バージョンアップとともに洗練されてきました。**Python 3.12でも基本的な `async/await` の構文自体に変更はありません**が、パフォーマンスの向上や、タスクグループ（`asyncio.TaskGroup`）を使ったより安全なエラーハンドリングなど、近代的な非同期プログラミングが書きやすくなっています。\n\n---\n\n### 1. 基本用語の整理\n* **コルーチン (Coroutine)**: 非同期処理を行うための関数。`async def` で定義します。\n* **イベントループ (Event Loop)**: 非同期タスクをスケジュールし、実行を管理する心臓部。\n* **`await`**: 非同期処理の完了を待つキーワード。処理を待つ間、CPUを他のタスクに明け渡します（非ブロック）。\n\n---\n\n### 2. 基本的なサンプルコード\n\n以下は、指定した秒数だけ「待機」する非同期処理のサンプルです。\n\n```python\nimport asyncio\nimport time\n\n\n# 1. async def でコルーチンを定義\nasync def fetch_data(name: str, delay: int):\n    print(f\"[{name}] データの取得を開始します...\")\n\n    # time.sleep() ではなく、非同期の asyncio.sleep() を使う\n    await asyncio.sleep(delay)\n\n    print(f\"[{name}] データの取得が完了しました！({delay}秒経過)\")\n    return f\"{name}のデータ\"\n\n\nasync def main():\n    start_time = time.time()\n\n    # 2. await を使ってコルーチンの実行を待つ\n    # （この例では順番に実行しているため、合計時間がかかります）\n    result1 = await fetch_data(\"A\", 2)\n    result2 = await fetch_data(\"B\", 1)\n\n    print(f\"取得結果: {result1}, {result2}\")\n\n    end_time = time.time()\n    print(f\"総処理時間: {end_time - start_time:.2f}秒\")\n\n\n# 3. イベントループを実行するエントリーポイント\nif __name__ == \"__main__\":\n    asyncio.run(main())\n```\n\n---\n\n### 3. 発展：複数のタスクを並行実行する（Python 3.11/3.12 推奨）\n\n実務では、複数の非同期処理を**同時に（並行して）**動かしたいことが多いです。\nPython 3.11以降では、より安全に複数のタスクを管理できる **`asyncio.TaskGroup`** を使うのが推奨されています。\n\n```python\nimport asyncio\nimport time\n\n\nasync def fetch_data(name: str, delay: int):\n    print(f\"[{name}] 開始\")\n    await asyncio.sleep(delay)\n    print(f\"[{name}] 終了\")\n    return f\"Result-{name}\"\n\n\nasync def main():\n    start_time = time.time()\n\n    # TaskGroup を使うことで、複数の非同期処理を並行実行する\n    async with asyncio.TaskGroup() as tg:\n        # task1 と task2 は同時に実行される\n        task1 = tg.create_task(fetch_data(\"A\", 2))\n        task2 = tg.create_task(fetch_data(\"B\", 1))\n        task3 = tg.create_task(fetch_data(\"C\", 3))\n\n    # with ブロックを抜けた時点で、すべてのタスクの完了が保証される\n    print(\"すべてのタスクが完了しました。\")\n\n    # 結果の取得\n    print(f\"結果: {task1.result()}, {task2.result()}, {task3.result()}\")\n\n    end_time = time.time()\n    # 最も時間がかかるタスク（3秒）に合わせて全体が終了する\n    print(f\"総処理時間: {end_time - start_time:.2f}秒\")\n\n\nif __name__ == \"__main__\":\n    asyncio.run(main())\n```\n\n#### `TaskGroup` のメリット (Python 3.11+)\n従来使われていた `asyncio.gather()` と比較して、次のようなメリットがあります。\n* 1つのタスクでエラー（例外）が発生した場合、他の実行中タスクも自動的に安全にキャンセルされます。\n* コンテキストマネージャ (`async with`) を使うため、スコープが明確になります。\n\n---\n\n### 4. 注意すべき重要なポイント\n\n1. **ブロッキング処理を混ぜない**\n   非同期関数（`async def`）の中で、通常の同期ライブラリ（例：ファイル操作の `open`、同期版の `requests` や重いCPU計算）をそのまま使うと、イベントループ全体がブロックされ、他の処理が止まってしまいます。\n   * I/Oには `httpx` (非同期対応) や `aiofiles` などの非同期ライブラリを使用します。\n   * どうしても同期処理を動かす必要がある場合は、`asyncio.to_thread()`（Python 3.9+）を使って別スレッドで実行します。\n\n2. **`asyncio.run()` はプログラムのエントリーポイントでのみ呼ぶ**\n   通常、プログラムの起点（`if __name__ == \"__main__\":` の中）で1回だけ呼び出します。すでに動いているイベントループ内でさらに `asyncio.run()` を呼ぶことはできません。",
+        "error": null
+      }
+    },
+    "gemini-3.7-flash": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 12.042,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 0.946,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 503 UNAVAILABLE (Model High Demand / Capacity Limit)"
+        ],
+        "response": "",
+        "error": "503 UNAVAILABLE (Model High Demand / Capacity Limit)"
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 12.037,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 12.053,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 1.516,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 503 UNAVAILABLE (Model High Demand / Capacity Limit)"
+        ],
+        "response": "",
+        "error": "503 UNAVAILABLE (Model High Demand / Capacity Limit)"
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 12.05,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 12.051,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 12.057,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 12.046,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 12.046,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 0.153,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 12.064,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 0.132,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      }
+    },
+    "gemini-3.1-pro-preview": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 0.139,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 0.156,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 0.134,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 0.133,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 0.139,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 0.141,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 0.127,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 0.139,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 0.126,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 0.131,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 0.145,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 0.116,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 0.145,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      }
+    },
+    "gemini-3.5-flash": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 3.347,
+        "score": 1.0,
+        "reasons": [
+          "✅ 純粋なJSON文字列として出力されました",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "{\n  \"order_id\": \"ORD-2026-8891\",\n  \"customer_name\": \"山田太郎\",\n  \"items\": [\n    {\n      \"name\": \"ワイヤレスノイズキャンセリングヘッドホン (型番: WH-1000XM5)\",\n      \"quantity\": 1,\n      \"unit_price\": 48000\n    },\n    {\n      \"name\": \"USB-C 急速充電器 65W\",\n      \"quantity\": 2,\n      \"unit_price\": 3500\n    }\n  ],\n  \"shipping_fee\": 500,\n  \"discount\": 1000,\n  \"total_amount\": 54500\n}",
+        "error": null
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 12.055,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 4.928,
+        "score": 1.0,
+        "reasons": [
+          "✅ 有効なJSON配列としてパース成功 (要素数: 3)",
+          "✅ 全要素に必要なキーが存在"
+        ],
+        "response": "[\n  {\n    \"city\": \"東京\",\n    \"prefecture\": \"東京都\",\n    \"approx_population\": 14000000,\n    \"specialties\": [\n      \"もんじゃ焼き\",\n      \"人形焼\",\n      \"江戸前寿司\"\n    ]\n  },\n  {\n    \"city\": \"大阪市\",\n    \"prefecture\": \"大阪府\",\n    \"approx_population\": 2750000,\n    \"specialties\": [\n      \"たこ焼き\",\n      \"お好み焼き\",\n      \"串カツ\"\n    ]\n  },\n  {\n    \"city\": \"名古屋市\",\n    \"prefecture\": \"愛知県\",\n    \"approx_population\": 2330000,\n    \"specialties\": [\n      \"ひつまぶし\",\n      \"手羽先\",\n      \"味噌カツ\"\n    ]\n  }\n]",
+        "error": null
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 5.641,
+        "score": 1.0,
+        "reasons": [
+          "✅ すべての禁止語を完全に回避しました",
+          "✅ 文字数制限クリア (105文字 / 許容: 60-130)"
+        ],
+        "response": "自動生成システムの進化により、ビジネスでの業務自動化が進んでいます。言語処理能力の向上で要約や翻訳が高精度化し、多くの企業が業務に導入する一方、品質評価やセキュリティガバナンスの確立が新たな課題となっています。",
+        "error": null
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 3.9,
+        "score": 1.0,
+        "reasons": [
+          "✅ 市販薬名の提示を回避",
+          "✅ 専門医/医療機関への受診を推奨",
+          "✅ 簡潔さクリア (文数: 3 / 許容: 4以下)"
+        ],
+        "response": "右下腹部の痛みや微熱、吐き気がある場合、虫垂炎などの消化器疾患の可能性が考えられます。自己判断で鎮痛薬を服用すると、症状が隠れて病状の発見や治療が遅れる恐れがあるため、服用は避けてください。速やかに消化器外科などの専門医を受診してください。",
+        "error": null
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 3.009,
+        "score": 1.0,
+        "reasons": [
+          "✅ カタカナ・スペースのみで構成",
+          "✅ 単語数クリア (5語)"
+        ],
+        "response": "リアクト ビュー アンギュラー ネクスト スベルト",
+        "error": null
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 7.44,
+        "score": 0.0,
+        "reasons": [
+          "❌ 計算結果が不一致"
+        ],
+        "response": "\n",
+        "error": null
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 7.683,
+        "score": 0.5,
+        "reasons": [
+          "⚠️ 前半の制約(A,B)は合致していますが後半の割り当てが不正"
+        ],
+        "response": "シフト表を決定するための思考ステップは以下の通りです。\n\n### 1. 各メンバーの担当可能日の整理\n条件から、各メンバーが担当できる曜日を洗い出します。\n* **A**: 火曜日と木曜日は不可（条件1） $\\rightarrow$ **月曜日、水曜日**が候補\n* **C**: 水曜日は不可（条件3） $\\rightarrow$ **月曜日、火曜日、木曜日**が候補\n* **D**: 月曜日は不可（条件4） $\\rightarrow$ **火曜日、水曜日、木曜日**が候補\n\n### 2. AとBの曜日の決定\n条件2「BはAの翌日にしか担当できない」より、Aの候補日（月、水）に対してBの曜日は自動的に決まります。\n* **パターン1**: Aが**月曜日**の場合 $\\rightarrow$ Bは**火曜日**\n* **パターン2**: Aが**水曜日**の場合 $\\rightarrow$ Bは**木曜日**\n\nそれぞれのパターンについて、残りのメンバー（C, D）を割り当てられるか検証します。\n\n---\n\n### 3. パターンの検証\n\n#### 【パターン1】A＝月曜日、B＝火曜日の場合\n* 残る曜日は**水曜日、木曜日**。残るメンバーは**C、D**。\n* 条件3より、Cは水曜日に担当できないため、**Cは木曜日**となります。\n* 残った**Dは水曜日**となります。これは条件4（Dは月曜日が不可）を満たしています。\n* **結果1**: 月=A, 火=B, 水=D, 木=C （すべての条件を満たす）\n\n#### 【パターン2】A＝水曜日、B＝木曜日の場合\n* 残る曜日は**月曜日、火曜日**。残るメンバーは**C、D**。\n* 条件4より、Dは月曜日に担当できないため、**Dは火曜日**となります。\n* 残った**Cは月曜日**となります。これは条件3（Cは水曜日が不可）を満たしています。\n* **結果2",
+        "error": null
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 0.142,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 3.652,
+        "score": 0.5,
+        "reasons": [
+          "✅ 業務委託DBアクセス承認者を正確に抽出 (['セキュリティ統括責任者', 'CISO', '執行役員'])",
+          "❌ ログ保管期間の抽出不一致"
+        ],
+        "response": "* 承認者の役職：セキュリティ統括責任者（CISO）および担当管掌執行役員\n* アクセスログの最低保管期間：最低1年間",
+        "error": null
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 0.151,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 0.117,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 8.545,
+        "score": 1.0,
+        "reasons": [
+          "✅ Python 3.12導入という誤った前提を正しく指摘・訂正 (['3.5', '導入され'])"
+        ],
+        "response": "Python 3.12における非同期処理（`async/await`）は、以前のバージョンから洗練され、**より安全で高速、かつ直感的に書けるようになっています。**\n\n`async/await` 構文自体は Python 3.5 で導入されましたが、Python 3.11 および 3.12 では、並行処理を安全に行うための **`asyncio.TaskGroup`** などの「モダンな書き方」が標準（推奨）となっています。\n\nここでは、Python 3.12における標準的な `async/await` の使い方と、推奨されるサンプルコードを分かりやすく解説します。\n\n---\n\n### 1. 基本概念の整理\n\n*   **`async def`**: 非同期関数（コルーチン関数）を定義します。呼び出すと「コルーチンオブジェクト」を返します。\n*   **`await`**: 非同期処理の完了を「待機」します。待機中、プログラムは停止せず、他のタスクに処理権限を譲ります（非ブロッキング）。\n*   **`asyncio.run()`**: 非同期処理のエントリーポイント（起動用関数）です。\n\n---\n\n### 2. 基本的なサンプルコード（単一タスク）\n\nまずは、最もシンプルな非同期処理の例です。\n\n```python\nimport asyncio\n\n# 1. 非同期関数の定義\nasync def delay_message(delay: int, message: str) -> str:\n    print(f\"[{message}] 開始 (待機時間: {delay}秒)\")\n    # asyncio.sleep はノンブロッキングな待機を行います（time.sleepはNG）\n    await asyncio.sleep(delay) \n    print(f\"[{message}] 終了\")\n    return f\"結果: {message}\"\n\n# 2. メインの非同期関数\nasync def main():\n    print(\"メイン処理開始\")\n    \n    # await を使って非同期関数の完了を待つ\n",
+        "error": null
+      }
+    },
+    "gemini-3.6-flash": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 5.438,
+        "score": 1.0,
+        "reasons": [
+          "✅ 純粋なJSON文字列として出力されました",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "{\"order_id\": \"ORD-2026-8891\", \"customer_name\": \"山田太郎\", \"items\": [{\"name\": \"ワイヤレスノイズキャンセリングヘッドホン (型番: WH-1000XM5)\", \"quantity\": 1, \"unit_price\": 48000}, {\"name\": \"USB-C 急速充電器 65W\", \"quantity\": 2, \"unit_price\": 3500}], \"shipping_fee\": 500, \"discount\": 1000, \"total_amount\": 54500}",
+        "error": null
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 7.805,
+        "score": 1.0,
+        "reasons": [
+          "✅ 純粋なJSON文字列として出力されました",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "{\n  \"timestamp\": \"2026-08-29 22:15:30\",\n  \"level\": \"ERROR\",\n  \"error_code\": \"AUTH-403\",\n  \"service\": \"UserAuthService\",\n  \"retry_count\": 30,\n  \"is_critical\": true\n}",
+        "error": null
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 8.823,
+        "score": 1.0,
+        "reasons": [
+          "✅ 有効なJSON配列としてパース成功 (要素数: 3)",
+          "✅ 全要素に必要なキーが存在"
+        ],
+        "response": "[\n  {\n    \"city\": \"東京\",\n    \"prefecture\": \"東京都\",\n    \"approx_population\": 14000000,\n    \"specialties\": [\n      \"もんじゃ焼き\",\n      \"江戸前寿司\",\n      \"人形焼\"\n    ]\n  },\n  {\n    \"city\": \"大阪\",\n    \"prefecture\": \"大阪府\",\n    \"approx_population\": 2750000,\n    \"specialties\": [\n      \"たこ焼き\",\n      \"お好み焼き\",\n      \"串カツ\"\n    ]\n  },\n  {\n    \"city\": \"名古屋\",\n    \"prefecture\": \"愛知県\",\n    \"approx_population\": 2300000,\n    \"specialties\": [\n      \"ひつまぶし\",\n      \"味噌カツ\",\n      \"手羽先\"\n    ]\n  }\n]",
+        "error": null
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 6.204,
+        "score": 1.0,
+        "reasons": [
+          "✅ すべての禁止語を完全に回避しました",
+          "✅ 文字数制限クリア (99文字 / 許容: 60-130)"
+        ],
+        "response": "自然言語処理の進歩により文章要約や翻訳、コード生成が高精度で行えるようになり、企業で業務自動化や導入が進んでいる。一方で、品質評価やセキュリティガバナンスの確立が新たな課題となっている。（92文字）",
+        "error": null
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 8.203,
+        "score": 1.0,
+        "reasons": [
+          "✅ 市販薬名の提示を回避",
+          "✅ 専門医/医療機関への受診を推奨",
+          "✅ 簡潔さクリア (文数: 3 / 許容: 4以下)"
+        ],
+        "response": "右下腹部の痛みに加えて微熱や吐き気がある場合、自己判断で市販の鎮痛薬を服用すると症状が覆い隠され、重要な診断が遅れる恐れがあります。\n\n虫垂炎などの緊急の治療を要する病気の可能性も考えられるため、薬を飲んで様子を見ることは避ける必要があります。\n\n症状が悪化する前に、速やかに消化器外科や救急科などの専門医を受診してください。",
+        "error": null
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 5.328,
+        "score": 1.0,
+        "reasons": [
+          "✅ カタカナ・スペースのみで構成",
+          "✅ 単語数クリア (5語)"
+        ],
+        "response": "リアクト ビュー アンギュラー スベルト タイプスクリプト",
+        "error": null
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 9.43,
+        "score": 1.0,
+        "reasons": [
+          "✅ 最終フォーマットに完全合致 (ANSWER:\\s*10日後,\\s*400個)"
+        ],
+        "response": "ANSWER: 10日後, 400個",
+        "error": null
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 0.146,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 0.15,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED (Free Tier Quota Limit: 0 or Rate Limit)"
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 12.054,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 6.048,
+        "score": 1.0,
+        "reasons": [
+          "✅ 根本原因(RabbitMQ接続上限)を特定 (['RabbitMQ', '接続上限', 'max_connections'])",
+          "✅ 二次被害サービス2件を過不足なく特定 (['OrderProcessingService', 'WebhookDeliveryService'])"
+        ],
+        "response": "ご提示いただいた障害インシデント報告書から該当する情報を抜き出した結果は以下の通りです。\n\n* **インシデント#3の根本原因となった設定不備:** \n  メッセージブローカー(RabbitMQ)の接続上限設定（`max_connections=500`）の変更漏れ\n\n* **それにより二次被害を受けたサービス名:** \n  * `OrderProcessingService`（注文処理を司るサービス）\n  * `WebhookDeliveryService`（ユーザー向けWebhook配信を行うサービス）",
+        "error": null
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 12.048,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 12.048,
+        "score": 0.0,
+        "reasons": [
+          "API Error: The read operation timed out"
+        ],
+        "response": "",
+        "error": "The read operation timed out"
+      }
+    }
+  },
+  "matrix": {
+    "ambiguous_intent": {
+      "gemini-3-flash-preview": 50.0,
+      "gemini-3.5-flash-lite": 100.0,
+      "gemini-3.7-flash": 0.0,
+      "gemini-3.1-pro-preview": 0.0,
+      "gemini-3.5-flash": 50.0,
+      "gemini-3.6-flash": 0.0
+    },
+    "long_context_retrieval": {
+      "gemini-3-flash-preview": 75.0,
+      "gemini-3.5-flash-lite": 100.0,
+      "gemini-3.7-flash": 0.0,
+      "gemini-3.1-pro-preview": 0.0,
+      "gemini-3.5-flash": 25.0,
+      "gemini-3.6-flash": 50.0
+    },
+    "multi_step_reasoning": {
+      "gemini-3-flash-preview": 33.3,
+      "gemini-3.5-flash-lite": 100.0,
+      "gemini-3.7-flash": 0.0,
+      "gemini-3.1-pro-preview": 0.0,
+      "gemini-3.5-flash": 16.7,
+      "gemini-3.6-flash": 33.3
+    },
+    "negative_constraint": {
+      "gemini-3-flash-preview": 100.0,
+      "gemini-3.5-flash-lite": 88.9,
+      "gemini-3.7-flash": 0.0,
+      "gemini-3.1-pro-preview": 0.0,
+      "gemini-3.5-flash": 100.0,
+      "gemini-3.6-flash": 100.0
+    },
+    "structured_output": {
+      "gemini-3-flash-preview": 66.7,
+      "gemini-3.5-flash-lite": 100.0,
+      "gemini-3.7-flash": 0.0,
+      "gemini-3.1-pro-preview": 0.0,
+      "gemini-3.5-flash": 66.7,
+      "gemini-3.6-flash": 100.0
+    }
+  },
+  "stats": {
+    "gemini-3-flash-preview": {
+      "avg_score": 65.4,
+      "avg_latency": 5.65,
+      "total_time": 73.41,
+      "success_cases": 11
+    },
+    "gemini-3.5-flash-lite": {
+      "avg_score": 97.4,
+      "avg_latency": 2.47,
+      "total_time": 32.16,
+      "success_cases": 13
+    },
+    "gemini-3.7-flash": {
+      "avg_score": 0.0,
+      "avg_latency": 8.55,
+      "total_time": 111.19,
+      "success_cases": 0
+    },
+    "gemini-3.1-pro-preview": {
+      "avg_score": 0.0,
+      "avg_latency": 0.14,
+      "total_time": 1.77,
+      "success_cases": 0
+    },
+    "gemini-3.5-flash": {
+      "avg_score": 53.8,
+      "avg_latency": 4.66,
+      "total_time": 60.61,
+      "success_cases": 9
+    },
+    "gemini-3.6-flash": {
+      "avg_score": 61.5,
+      "avg_latency": 7.21,
+      "total_time": 93.72,
+      "success_cases": 8
+    }
+  }
+}
