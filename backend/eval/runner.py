@@ -1,14 +1,15 @@
 """
-LLM Evaluation Benchmark Runner (Vertex AI & AI Studio Multi-Model Comparison)
-Proモデルおよび各世代モデルの比較ベンチマークを実行する
+LLM Evaluation Benchmark Runner (Vertex AI Global - Gemini 3 Series)
+Vertex AI (global) 経由で Gemini 3 世代モデルをベンチマーク評価する
 """
 
 import os
 import sys
 import time
 import json
+import concurrent.futures
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -21,57 +22,58 @@ from eval.evaluator import Evaluator
 
 load_dotenv()
 
-# 評価対象モデルリスト: (モデル名, バックエンド種別: "vertexai" or "aistudio")
-TARGET_MODEL_CONFIGS: List[Tuple[str, str]] = [
-    # 1. 🌟 有料枠 / GCP Vertex AI (Proモデル & 最新版)
-    ("gemini-2.5-pro", "vertexai"),         # 無料枠では使えなかったフラグシップProモデル
-    ("gemini-2.5-flash", "vertexai"),       # Vertex AI 安定版 Flash
-    ("gemini-2.5-flash-lite", "vertexai"),  # Vertex AI 版 Flash-Lite
-    # 2. ⚡ AI Studio 先行世代
-    ("gemini-3.5-flash-lite", "aistudio"),  # 先ほどの最高スコアモデル
-    ("gemini-3-flash-preview", "aistudio"), # 先行プレビューFlash
+TARGET_MODELS = [
+    "gemini-3.7-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3-flash-preview",
+    "gemini-3.1-pro-preview",
 ]
 
-def get_client(backend_type: str) -> genai.Client:
-    if backend_type == "vertexai":
-        project = os.getenv("GOOGLE_CLOUD_PROJECT", "").strip()
-        location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1").strip()
-        return genai.Client(vertexai=True, project=project, location=location)
-    else:
-        api_key = os.getenv("GOOGLE_API_KEY", "").strip()
-        return genai.Client(api_key=api_key)
+def generate_with_timeout(client: genai.Client, model: str, prompt: str, timeout_sec: float = 20.0) -> str:
+    config = types.GenerateContentConfig(
+        temperature=0.1,
+        max_output_tokens=2048,
+    )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(client.models.generate_content, model=model, contents=prompt, config=config)
+        try:
+            resp = future.result(timeout=timeout_sec)
+            return resp.text or ""
+        except concurrent.futures.TimeoutError:
+            raise TimeoutError(f"Generation timed out after {timeout_sec}s")
 
 def run_benchmark():
+    project = os.getenv("GOOGLE_CLOUD_PROJECT", "").strip()
+    location = os.getenv("GOOGLE_CLOUD_LOCATION", "global").strip()
+
+    if not project:
+        print("[ERROR] GOOGLE_CLOUD_PROJECT is not set in environment or .env")
+        sys.exit(1)
+
+    client = genai.Client(vertexai=True, project=project, location=location)
+
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     results_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(results_dir, exist_ok=True)
 
-    model_names = [f"{m} ({b})" for m, b in TARGET_MODEL_CONFIGS]
-
     print("=" * 80)
-    print("🚀 LLM EVALUATION BENCHMARK: Flagship Pro & Multi-Generation Comparison")
+    print("🚀 LLM EVALUATION BENCHMARK: Vertex AI (Global) - Gemini 3 Series Comparison")
     print(f"📅 Timestamp: {timestamp_str}")
-    print(f"🎯 Target Models: {', '.join(model_names)}")
+    print(f"🌐 Backend: Google Cloud Vertex AI (Location: {location})")
+    print(f"🎯 Target Models: {', '.join(TARGET_MODELS)}")
     print(f"📊 Benchmark Cases: {len(BENCHMARK_CASES)} cases across 5 categories")
     print("=" * 80)
 
     all_runs: Dict[str, Dict[str, Any]] = {}
     model_stats: Dict[str, Dict[str, Any]] = {}
 
-    for model_name, backend_type in TARGET_MODEL_CONFIGS:
-        label = f"{model_name} [{backend_type}]"
-        print(f"\n--- 🤖 Evaluating Model: {label} ---")
-        all_runs[label] = {}
+    for model_name in TARGET_MODELS:
+        print(f"\n--- 🤖 Evaluating Model on Vertex AI: {model_name} ---")
+        all_runs[model_name] = {}
         total_time = 0.0
         total_score = 0.0
         total_cases = len(BENCHMARK_CASES)
         success_cases = 0
-
-        try:
-            client = get_client(backend_type)
-        except Exception as e:
-            print(f"❌ Failed to initialize client for {label}: {e}")
-            continue
 
         for idx, case in enumerate(BENCHMARK_CASES, 1):
             case_id = case["id"]
@@ -87,16 +89,7 @@ def run_benchmark():
             response_text = ""
             error_msg = None
             try:
-                config = types.GenerateContentConfig(
-                    temperature=0.1,
-                    max_output_tokens=2048,
-                )
-                resp = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=config
-                )
-                response_text = resp.text or ""
+                response_text = generate_with_timeout(client, model_name, prompt, timeout_sec=20.0)
             except Exception as e:
                 error_msg = str(e)
 
@@ -105,7 +98,7 @@ def run_benchmark():
 
             if error_msg:
                 score = 0.0
-                reasons = [f"API Error: {error_msg}"]
+                reasons = [f"Vertex AI Error: {error_msg}"]
                 print(f"❌ 0 pts ({latency:.2f}s) - {error_msg[:35]}")
             else:
                 score, reasons = Evaluator.evaluate(eval_type, response_text, expected)
@@ -113,7 +106,7 @@ def run_benchmark():
                 success_cases += 1
                 print(f"✅ {score * 100:>3.0f} pts ({latency:.2f}s)")
 
-            all_runs[label][case_id] = {
+            all_runs[model_name][case_id] = {
                 "id": case_id,
                 "category": category,
                 "title": title,
@@ -128,48 +121,48 @@ def run_benchmark():
 
         avg_score = (total_score / total_cases) * 100
         avg_latency = total_time / total_cases
-        model_stats[label] = {
+        model_stats[model_name] = {
             "avg_score": round(avg_score, 1),
             "avg_latency": round(avg_latency, 2),
             "total_time": round(total_time, 2),
             "success_cases": success_cases
         }
-        print(f"  🏁 {label} Finished: Avg Score = {avg_score:.1f}% | Avg Latency = {avg_latency:.2f}s (Success: {success_cases}/{total_cases})")
+        print(f"  🏁 {model_name} Finished: Avg Score = {avg_score:.1f}% | Avg Latency = {avg_latency:.2f}s (Success: {success_cases}/{total_cases})")
 
     # -------------------------------------------------------------
     # マトリクス集計 (カテゴリ別)
     # -------------------------------------------------------------
     categories = sorted(list(set(c["category"] for c in BENCHMARK_CASES)))
-    all_labels = list(all_runs.keys())
     cat_matrix: Dict[str, Dict[str, float]] = {cat: {} for cat in categories}
     for cat in categories:
         cat_cases = [c["id"] for c in BENCHMARK_CASES if c["category"] == cat]
-        for lbl in all_labels:
-            scores = [all_runs[lbl][cid]["score"] * 100 for cid in cat_cases if cid in all_runs[lbl]]
-            cat_matrix[cat][lbl] = round(sum(scores) / len(scores), 1) if scores else 0.0
+        for m in TARGET_MODELS:
+            scores = [all_runs[m][cid]["score"] * 100 for cid in cat_cases if cid in all_runs[m]]
+            cat_matrix[cat][m] = round(sum(scores) / len(scores), 1) if scores else 0.0
 
     # -------------------------------------------------------------
     # レポート作成 (Markdown & JSON)
     # -------------------------------------------------------------
     report_lines = []
-    report_lines.append("# 📊 LLM Evaluation Benchmark Report: Pro & Multi-Generation Comparison\n")
+    report_lines.append("# 📊 LLM Evaluation Benchmark Report: Vertex AI (Global) - Gemini 3 Series\n")
     report_lines.append(f"- **Execution Timestamp**: {timestamp_str}")
+    report_lines.append(f"- **Backend Engine**: Google Cloud Vertex AI (`location=global`)")
     report_lines.append(f"- **Total Benchmark Cases**: {len(BENCHMARK_CASES)} cases")
-    report_lines.append(f"- **Evaluated Models**: {', '.join(all_labels)}\n")
+    report_lines.append(f"- **Target Models**: {', '.join(TARGET_MODELS)}\n")
     report_lines.append("## 1. Category-wise Score Matrix (%)\n")
 
-    header = "| Category | " + " | ".join([f"`{lbl}`" for lbl in all_labels]) + " |"
-    sep = "|:---| " + " | ".join([":---:" for _ in all_labels]) + " |"
+    header = "| Category | " + " | ".join([f"`{m}`" for m in TARGET_MODELS]) + " |"
+    sep = "|:---| " + " | ".join([":---:" for _ in TARGET_MODELS]) + " |"
     report_lines.append(header)
     report_lines.append(sep)
 
     for cat in categories:
-        row = f"| **`{cat}`** | " + " | ".join([f"{cat_matrix[cat][lbl]:.1f}%" for lbl in all_labels]) + " |"
+        row = f"| **`{cat}`** | " + " | ".join([f"{cat_matrix[cat][m]:.1f}%" for m in TARGET_MODELS]) + " |"
         report_lines.append(row)
 
-    total_row = "| **🔥 Overall Average** | " + " | ".join([f"**{model_stats[lbl]['avg_score']:.1f}%**" for lbl in all_labels]) + " |"
+    total_row = "| **🔥 Overall Average** | " + " | ".join([f"**{model_stats[m]['avg_score']:.1f}%**" for m in TARGET_MODELS]) + " |"
     report_lines.append(total_row)
-    latency_row = "| **⏱️ Avg Latency** | " + " | ".join([f"{model_stats[lbl]['avg_latency']:.2f}s" for lbl in all_labels]) + " |"
+    latency_row = "| **⏱️ Avg Latency** | " + " | ".join([f"{model_stats[m]['avg_latency']:.2f}s" for m in TARGET_MODELS]) + " |"
     report_lines.append(latency_row)
 
     report_lines.append("\n## 2. Detailed Case Breakdown\n")
@@ -179,18 +172,18 @@ def run_benchmark():
         report_lines.append(f"**Prompt Snippet**: `{case['prompt'][:90]}...`\n")
         report_lines.append("| Model | Score | Latency | Evaluation Details |")
         report_lines.append("|:---|:---:|:---:|:---|")
-        for lbl in all_labels:
-            if cid in all_runs[lbl]:
-                res = all_runs[lbl][cid]
+        for m in TARGET_MODELS:
+            if cid in all_runs[m]:
+                res = all_runs[m][cid]
                 reasons_str = "<br>".join(res["reasons"])
-                report_lines.append(f"| `{lbl}` | {res['score']*100:.0f}% | {res['latency_sec']}s | {reasons_str} |")
+                report_lines.append(f"| `{m}` | {res['score']*100:.0f}% | {res['latency_sec']}s | {reasons_str} |")
         report_lines.append("")
 
     report_text = "\n".join(report_lines)
 
-    report_path = os.path.join(results_dir, f"eval_report_pro_{timestamp_str}.md")
+    report_path = os.path.join(results_dir, f"eval_report_gemini3_{timestamp_str}.md")
     latest_report_path = os.path.join(results_dir, "eval_report_latest.md")
-    raw_json_path = os.path.join(results_dir, f"eval_raw_pro_{timestamp_str}.json")
+    raw_json_path = os.path.join(results_dir, f"eval_raw_gemini3_{timestamp_str}.json")
 
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report_text)
@@ -205,7 +198,7 @@ def run_benchmark():
     print(header)
     print(sep)
     for cat in categories:
-        print(f"| {cat:22} | " + " | ".join([f"{cat_matrix[cat][lbl]:>22.1f}%" for lbl in all_labels]) + " |")
+        print(f"| {cat:22} | " + " | ".join([f"{cat_matrix[cat][m]:>22.1f}%" for m in TARGET_MODELS]) + " |")
     print(total_row)
     print(latency_row)
     print("=" * 80)
