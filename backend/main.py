@@ -101,6 +101,9 @@ async def get_config():
         "has_api_key": has_api_key
     }
 
+import time
+from eval.traffic.store import global_traffic_store
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     """
@@ -109,8 +112,10 @@ async def chat_endpoint(request: ChatRequest):
     【処理の流れ】
     1. メッセージが空でないかバリデーション (空なら HTTP 400 を送出)
     2. session_id が指定されていない場合は新規 UUID を生成
-    3. agent_manager.generate_response を呼び出して AI 応答を取得
-    4. ChatResponse 形式で返却
+    3. 直前までの会話コンテキスト履歴を取得
+    4. agent_manager.generate_response を呼び出して AI 応答を取得
+    5. 会話履歴の更新およびトラフィックログへの自動蓄積 (Phase 3)
+    6. ChatResponse 形式で返却
     """
     if not request.message or not request.message.strip():
         raise HTTPException(
@@ -120,12 +125,46 @@ async def chat_endpoint(request: ChatRequest):
 
     session_id = request.session_id or str(uuid.uuid4())
     user_id = request.user_id or "default_user"
+    clean_message = request.message.strip()
 
+    # 1. 直前までの会話履歴コンテキストを取得
+    context = agent_manager.get_conversation_context(session_id)
+
+    # 2. 応答生成およびレイテンシ計測
+    start_t = time.time()
     reply = await agent_manager.generate_response(
         session_id=session_id,
-        prompt=request.message.strip(),
+        prompt=clean_message,
         user_id=user_id
     )
+    latency_ms = int((time.time() - start_t) * 1000)
+
+    # 3. 会話履歴へのターン追加
+    agent_manager.append_conversation_turn(session_id, "user", clean_message)
+    agent_manager.append_conversation_turn(session_id, "assistant", reply)
+
+    # 4. 実トラフィックの自動蓄積 (Phase 3: 個人情報マスキング付き)
+    provider_route = "vertex_ai" if config.USE_VERTEXAI else "ai_studio"
+    instruction = (
+        "You are a helpful, friendly, and highly intelligent AI assistant powered by "
+        f"Google ADK and Gemini ({config.GEMINI_MODEL}). "
+        "Respond concisely and accurately in markdown format when appropriate."
+    )
+    try:
+        global_traffic_store.record_interaction(
+            session_id=session_id,
+            input_text=clean_message,
+            conversation_context=context,
+            output_text=reply,
+            model_id=config.GEMINI_MODEL,
+            provider_route=provider_route,
+            instruction=instruction,
+            generation_config={"temperature": 0.0},
+            latency_ms=latency_ms
+        )
+    except Exception as e:
+        # ログ保存失敗がチャット応答自体をブロックしないよう例外ハンドリング
+        pass
 
     return ChatResponse(
         reply=reply,

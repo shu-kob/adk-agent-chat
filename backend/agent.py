@@ -9,7 +9,7 @@ Google Agent Development Kit (ADK) エージェント & セッションライフ
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, List, Dict
 import os
 import config  # config.py から GEMINI_MODEL, GOOGLE_API_KEY, USE_VERTEXAI, GCP_PROJECT 等を参照
 
@@ -50,6 +50,7 @@ class ChatAgentManager:
         self.model_name = model_name
         self.allow_fallback = allow_fallback
         self.last_execution_path: Optional[str] = None  # 直近の実行経路 ('adk' または 'genai_sdk_fallback')
+        self.history: Dict[str, List[Dict[str, str]]] = {}  # セッションごとの会話コンテキスト履歴
         self.session_service = None
         self.runner = None
         self.adk_agent = None
@@ -131,25 +132,34 @@ class ChatAgentManager:
                 "or set `GOOGLE_GENAI_USE_VERTEXAI=true` and run `gcloud auth application-default login`."
             )
 
-        # 1. Google ADK Runner 経由でのエージェント実行を優先試行
+        # 1. Google ADK Runner 経由でのエージェント非同期実行を優先試行 (run_async)
         if ADK_AVAILABLE and self.runner:
             try:
                 await self.get_or_create_session(session_id=session_id, user_id=user_id)
                 response_text = ""
                 
-                # Runner を実行してイベントストリームを取得
-                run_res = self.runner.run(
-                    user_id=user_id,
-                    session_id=session_id,
-                    new_message=prompt
-                )
-                events = await run_res if asyncio.iscoroutine(run_res) else run_res
+                # ADK Runner の非同期ジェネレータメソッド run_async を呼び出し
+                if hasattr(self.runner, "run_async"):
+                    events = self.runner.run_async(
+                        user_id=user_id,
+                        session_id=session_id,
+                        new_message=prompt
+                    )
+                else:
+                    # 後方互換性フォールバック
+                    events = self.runner.run(
+                        user_id=user_id,
+                        session_id=session_id,
+                        new_message=prompt
+                    )
+
+                events = await events if asyncio.iscoroutine(events) else events
 
                 if isinstance(events, str):
                     self.last_execution_path = "adk"
                     return events
 
-                # 非同期イテレータまたは通常のイテレータからテキストを抽出
+                # 非同期イテレータ (AsyncGenerator) からテキストを抽出
                 if hasattr(events, "__aiter__"):
                     async for event in events:
                         if hasattr(event, "content") and event.content:
@@ -176,7 +186,7 @@ class ChatAgentManager:
         if ADK_AVAILABLE and not self.allow_fallback:
             raise RuntimeError("ADK runner could not process request and fallback is disabled.")
 
-        # 2. google-genai SDK 直接呼び出しへのフォールバック (チャット本番用)
+        # 2. google-genai SDK 直接呼び出しへのフォールバック (チャット本番用: asyncio.to_thread でノンブロッキング化)
         if GENAI_AVAILABLE:
             try:
                 if config.USE_VERTEXAI:
@@ -188,7 +198,9 @@ class ChatAgentManager:
                 else:
                     client = genai.Client(api_key=config.GOOGLE_API_KEY)
 
-                response = client.models.generate_content(
+                # 同期 API 呼び出しをスレッドプールへ委譲し、FastAPI イベントループのブロックを防止
+                response = await asyncio.to_thread(
+                    client.models.generate_content,
                     model=self.model_name,
                     contents=prompt
                 )
@@ -205,6 +217,25 @@ class ChatAgentManager:
 
         return "Error: Neither google-adk nor google-genai could process the request."
 
+    def get_conversation_context(self, session_id: str) -> List[Dict[str, str]]:
+        """
+        指定されたセッションIDの直前までの会話コンテキスト履歴を取得する。
+        
+        :param session_id: セッションID
+        :return: [{"role": "user"|"assistant", "text": "..."}] のリスト
+        """
+        return list(self.history.get(session_id, []))
+
+    def append_conversation_turn(self, session_id: str, role: str, text: str):
+        """
+        セッション履歴に会話ターンを追加する。
+        
+        :param session_id: セッションID
+        :param role: 'user' または 'assistant'
+        :param text: 発言内容
+        """
+        self.history.setdefault(session_id, []).append({"role": role, "text": text})
+
     async def clear_session(self, session_id: str, user_id: str = "default_user") -> bool:
         """
         指定されたセッションIDの会話履歴メモリを破棄する。
@@ -213,6 +244,7 @@ class ChatAgentManager:
         :param user_id: ユーザー識別子
         :return: 破棄成功フラグ (bool)
         """
+        self.history.pop(session_id, None)
         if ADK_AVAILABLE and self.session_service:
             try:
                 res = self.session_service.delete_session(
