@@ -229,6 +229,31 @@ frontend/src/
   - `eval_report_<timestamp>.md` / `eval_report_latest.md`: 自動生成マークダウンレポート（実行サマリー、マトリクス、アサーション失敗内訳、各ケース詳細）
   - `eval_matrix_analysis.md`: モデル × カテゴリのクロス集計マトリクス & 考察レポート
 
+### 5.3 実トラフィックの蓄積とリプレイ評価仕様 (Phase 3 準拠)
+本番対話トラフィックを自動蓄積し、蓄積クエリに対して新候補（モデル・プロンプト・パラメータ）のバッチ再実行と決定論的差分分析を行う基盤です。
+
+#### 1. トラフィック蓄積 (`eval/traffic/store.py`)
+- **蓄積場所**: `backend/eval/traffic/data/traffic_log.jsonl`
+- **蓄積スキーマ (11項目)**:
+  - `query_id` (一意ID), `timestamp` (ISO日時), `session_id` (セッション識別子), `input_text` (ユーザー入力)
+  - `conversation_context` (直前までの会話履歴 `[{"role": "user"|"assistant", "text": "..."}]`)
+  - `output_text` (返却応答), `model_id` (使用モデル), `provider_route` (`vertex_ai` / `ai_studio`)
+  - `instruction_hash` (指示ハッシュ), `generation_config` (生成パラメータ), `latency_ms` (レイテンシ)
+- **個人情報保護 (PII Masking)**: `default_pii_masking_hook` により、メールアドレス (`[EMAIL]`) および電話番号 (`[PHONE]`) を保存前に自動マスキング。
+
+#### 2. リプレイ実行ジョブ (`eval/traffic/replay.py`)
+- **N 候補の一括比較**: 単一の実行ジョブで 3 候補以上の `ReplayCandidate`（モデル識別子・システムプロンプト・生成パラメータ）を指定可能。
+- **データ抽出**: 期間指定、件数上限 (`limit`)、サンプリング率 (`sample_ratio`) による抽出。
+- **スキーマ統一**: Phase 1.4 と完全互換な出力レコードに `source="replay"` および `candidate_id` を付与して永続化。消費トークン数・所要時間・コストを完全トラッキング。
+
+#### 3. 決定論的差分分析 (`eval/traffic/diff_analyzer.py`)
+LLM-as-a-judge を一切使わず、100% 決定論的なメトリクスで候補間の差異を算出・可視化：
+- **完全一致率**: 現行本番出力文字列との完全一致割合
+- **平均類似度**: レーベンシュタイン編集距離を正規化した出力類似度 (0.0〜1.0)
+- **JSON 妥当性率**: 出力が JSON 構文として有効である割合
+- **CodeBlock 混入率**: Markdown バッククォート (```) の混入割合
+- **出力長・レイテンシ統計**: 平均文字長、平均所要時間 (ms)
+
 ---
 
 ## 6. 仕様更新チェックリスト（開発者・AI 共通運用ルール）

@@ -41,4 +41,10 @@ npm run dev
 - **Frontend**: React 18, TypeScript, Vite, Vanilla CSS (Dark Mode)
 - **Backend**: Python 3.10+, FastAPI, Uvicorn
 - **AI Core**: Google Agent Development Kit (`google-adk`), Google Gen AI SDK (`google-genai`)
-- **Evaluation**: 決定論的アサーションエンジン (`backend/eval`)
+- **Evaluation & Replay**: 決定論的アサーション評価基盤 & 実トラフィック蓄積・リプレイ分析基盤 (`backend/eval`)
+
+---
+
+## 🔒 実トラフィック蓄積と個人情報保護 (Phase 3)
+本アプリケーションでは、モデル比較・継続的評価（リプレイ分析）を目的として `/api/chat` の対話ログを `backend/eval/traffic/data/traffic_log.jsonl` に自動蓄積します。
+保存時には `default_pii_masking_hook` により、メールアドレス (`[EMAIL]`) や電話番号 (`[PHONE]`) などの個人識別情報 (PII) を自動マスキングして保存します。

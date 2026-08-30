@@ -9,7 +9,7 @@ Google Agent Development Kit (ADK) エージェント & セッションライフ
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, List, Dict
 import os
 import config  # config.py から GEMINI_MODEL, GOOGLE_API_KEY, USE_VERTEXAI, GCP_PROJECT 等を参照
 
@@ -50,6 +50,7 @@ class ChatAgentManager:
         self.model_name = model_name
         self.allow_fallback = allow_fallback
         self.last_execution_path: Optional[str] = None  # 直近の実行経路 ('adk' または 'genai_sdk_fallback')
+        self.history: Dict[str, List[Dict[str, str]]] = {}  # セッションごとの会話コンテキスト履歴
         self.session_service = None
         self.runner = None
         self.adk_agent = None
@@ -205,6 +206,25 @@ class ChatAgentManager:
 
         return "Error: Neither google-adk nor google-genai could process the request."
 
+    def get_conversation_context(self, session_id: str) -> List[Dict[str, str]]:
+        """
+        指定されたセッションIDの直前までの会話コンテキスト履歴を取得する。
+        
+        :param session_id: セッションID
+        :return: [{"role": "user"|"assistant", "text": "..."}] のリスト
+        """
+        return list(self.history.get(session_id, []))
+
+    def append_conversation_turn(self, session_id: str, role: str, text: str):
+        """
+        セッション履歴に会話ターンを追加する。
+        
+        :param session_id: セッションID
+        :param role: 'user' または 'assistant'
+        :param text: 発言内容
+        """
+        self.history.setdefault(session_id, []).append({"role": role, "text": text})
+
     async def clear_session(self, session_id: str, user_id: str = "default_user") -> bool:
         """
         指定されたセッションIDの会話履歴メモリを破棄する。
@@ -213,6 +233,7 @@ class ChatAgentManager:
         :param user_id: ユーザー識別子
         :return: 破棄成功フラグ (bool)
         """
+        self.history.pop(session_id, None)
         if ADK_AVAILABLE and self.session_service:
             try:
                 res = self.session_service.delete_session(
