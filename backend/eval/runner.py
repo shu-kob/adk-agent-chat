@@ -1,7 +1,11 @@
 """
-LLM Evaluation Benchmark Runner (SPECIFICATION_ADDENDUM_v1 Phase 1 Compliant)
-Supports multi-trial median aggregation, pre-flight model checks, MergeGuard validation,
-strictly deterministic generation parameters, and objective reporting.
+LLM ベンチマーク評価実行ランナー (backend/eval/runner.py)
+
+【役割】
+- SPECIFICATION_ADDENDUM_v1 Phase 1 & 2 準拠のバッチ評価を実行する。
+- 事前疎通チェック (validate_model_availability)、決定論的パラメータ固定 (temp=0.0, seed=42, max_output_tokens)、
+  複数回試行 (EVAL_TRIALS, 既定3回)、アサーション単位採点 (Evaluator.evaluate_detailed)、
+  マージガード検証 (MergeGuard)、中央値集計、アサーション失敗内訳集計、レポート自動生成を一括制御する。
 """
 
 import os
@@ -15,11 +19,12 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-# backend ルートをインポートパスに追加
+# backend ルートをインポートパスに追加 (eval 配下からの直接実行に対応)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from eval.dataset import BENCHMARK_CASES
-from eval.evaluator import Evaluator
+# 評価データセット、採点エンジン、メタデータガード、集計モジュールの参照
+from eval.dataset import BENCHMARK_CASES  # 外部 JSON からロードされた有効評価ケース一覧
+from eval.evaluator import Evaluator      # 決定論的アサーション評価エンジン
 from eval.guard import (
     create_trial_record,
     MergeGuard,
@@ -27,7 +32,7 @@ from eval.guard import (
     DATASET_VERSION,
     EVALUATOR_VERSION
 )
-from eval.precheck import validate_model_availability
+from eval.precheck import validate_model_availability  # 事前疎通チェック
 from eval.aggregator import (
     aggregate_trials_by_case,
     detect_unstable_cases,
@@ -36,18 +41,24 @@ from eval.aggregator import (
     generate_markdown_report
 )
 
+# .env ファイルの環境変数をロード
 load_dotenv()
 
-TARGET_MODELS = [
+# ==============================================================================
+# 評価対象モデルおよび定数定義
+# ==============================================================================
+# ベンチマークで比較評価するターゲットモデル一覧
+TARGET_MODELS: List[str] = [
     "gemini-2.5-flash",
     "gemini-2.5-pro",
     "gemini-2.5-flash-lite",
 ]
 
-DEFAULT_INSTRUCTION = "You are a helpful, friendly, and highly intelligent AI assistant."
+# 共通システムインストラクション
+DEFAULT_INSTRUCTION: str = "You are a helpful, friendly, and highly intelligent AI assistant."
 
-# 概算トークン単価 (USD per 1M tokens)
-MODEL_PRICING = {
+# 概算トークン単価 (USD per 1M tokens) - 実費トラッキング用
+MODEL_PRICING: Dict[str, Dict[str, float]] = {
     "gemini-2.5-flash-lite": {"input": 0.075, "output": 0.30},
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
     "gemini-2.5-pro": {"input": 1.25, "output": 5.00},
@@ -59,93 +70,120 @@ def generate_with_params(
     model: str,
     prompt: str,
     temperature: float = 0.0,
-    seed: Optional[int] = 42,
+    seed: int = 42,
     max_output_tokens: int = 1024,
-    timeout_sec: float = 25.0
+    timeout_sec: float = 30.0
 ) -> Tuple[str, int, int]:
     """
-    Calls LLM with strictly controlled generation parameters.
+    決定論的パラメータを厳格に固定して Gemini モデルを呼び出し、
+    生成テキストと消費トークン数を取得する。
+    
+    :param client: google.genai.Client インスタンス
+    :param model: 呼び出し対象モデル名
+    :param prompt: 入力プロンプト
+    :param temperature: 生成温度 (決定論的評価のため 0.0 固定)
+    :param seed: 乱数シード値 (42 固定)
+    :param max_output_tokens: 最大出力トークン数
+    :param timeout_sec: タイムアウト秒数
+    :return: (生成テキスト, 入力トークン数, 出力トークン数)
+    :raises TimeoutError: 指定時間内に応答が返らない場合
     """
-    config_kwargs: Dict[str, Any] = {
-        "temperature": temperature,
-        "max_output_tokens": max_output_tokens
-    }
-    if seed is not None:
-        config_kwargs["seed"] = seed
+    config = types.GenerateContentConfig(
+        temperature=temperature,
+        seed=seed,
+        max_output_tokens=max_output_tokens,
+        system_instruction=DEFAULT_INSTRUCTION
+    )
 
-    config = types.GenerateContentConfig(**config_kwargs)
+    def _call():
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=config
+        )
+        text = response.text if response.text else ""
+        prompt_tokens = 0
+        candidate_tokens = 0
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
+            candidate_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
+        return text, prompt_tokens, candidate_tokens
 
+    # タイムアウト付きスレッドプール実行
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(client.models.generate_content, model=model, contents=prompt, config=config)
+        future = executor.submit(_call)
         try:
-            resp = future.result(timeout=timeout_sec)
-            text = resp.text or ""
-            prompt_tokens = 0
-            candidate_tokens = 0
-            if hasattr(resp, "usage_metadata") and resp.usage_metadata:
-                prompt_tokens = getattr(resp.usage_metadata, "prompt_token_count", 0) or 0
-                candidate_tokens = getattr(resp.usage_metadata, "candidates_token_count", 0) or 0
-            return text, prompt_tokens, candidate_tokens
+            return future.result(timeout=timeout_sec)
         except concurrent.futures.TimeoutError:
-            raise TimeoutError(f"Generation timed out after {timeout_sec}s")
+            raise TimeoutError(f"Generation timed out after {timeout_sec}s for model {model}")
 
 def calculate_cost(model_name: str, prompt_tokens: int, candidate_tokens: int) -> float:
+    """
+    消費トークン数からドル建ての概算コスト (USD) を計算する。
+    
+    :param model_name: モデル名
+    :param prompt_tokens: 入力トークン数
+    :param candidate_tokens: 出力トークン数
+    :return: 概算コスト (USD)
+    """
     pricing = MODEL_PRICING.get(model_name, MODEL_PRICING["default"])
     cost = (prompt_tokens / 1_000_000 * pricing["input"]) + (candidate_tokens / 1_000_000 * pricing["output"])
-    return round(cost, 6)
+    return round(cost, 8)
 
-def run_benchmark():
-    batch_start_dt = datetime.now()
-    batch_start_iso = batch_start_dt.isoformat()
-    timestamp_str = batch_start_dt.strftime("%Y%m%d_%H%M%S")
+def main():
+    """
+    LLM ベンチマーク評価のメイン実行エントリーポイント
+    """
+    print("=" * 70)
+    print(f"🚀 Starting LLM Benchmark Evaluation Suite (Phase 2 Dataset Expansion)")
+    print(f"   Dataset Version: {DATASET_VERSION} | Evaluator Version: {EVALUATOR_VERSION}")
+    print("=" * 70)
 
-    # 1. 実行環境 & パラメータ設定
-    provider_route = "vertex_ai" if os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "true").lower() == "true" else "ai_studio"
-    project = os.getenv("GOOGLE_CLOUD_PROJECT", "").strip()
-    location = os.getenv("GOOGLE_CLOUD_LOCATION", "global").strip() if provider_route == "vertex_ai" else None
-    trials_per_case = int(os.getenv("EVAL_TRIALS", "3"))
-    temperature = 0.0
-    seed = 42
+    # 1. 認証と GenAI クライアント初期化
+    use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "false").lower() in ("true", "1", "yes")
+    api_key = os.getenv("GOOGLE_API_KEY", "").strip().strip('"\'')
+    project = os.getenv("GOOGLE_CLOUD_PROJECT", "").strip().strip('"\'')
+    location = os.getenv("GOOGLE_CLOUD_LOCATION", "global").strip().strip('"\'')
 
-    results_dir = os.path.join(os.path.dirname(__file__), "results")
-    os.makedirs(results_dir, exist_ok=True)
-
-    print("=" * 80)
-    print("🚀 LLM EVALUATION BENCHMARK: Phase 1 Deterministic Benchmark Runner")
-    print(f"📅 Start Time: {batch_start_iso} (Run ID: {timestamp_str})")
-    print(f"🌐 Provider Route: {provider_route} (Location: {location})")
-    print(f"🔄 Trials per Case: {trials_per_case} (Representative value: Median)")
-    print(f"🌡️ Generation Config: temperature={temperature}, seed={seed}")
-    print(f"🎯 Target Models: {', '.join(TARGET_MODELS)}")
-    print(f"📊 Benchmark Cases: {len(BENCHMARK_CASES)} cases across 5 categories")
-    print("=" * 80)
-
-    # 2. Client 初期化
-    if provider_route == "vertex_ai":
-        if not project:
-            print("[ERROR] GOOGLE_CLOUD_PROJECT is not set in environment or .env")
-            sys.exit(1)
-        client = genai.Client(vertexai=True, project=project, location=location or "global")
-    else:
-        api_key = os.getenv("GOOGLE_API_KEY", "").strip()
-        if not api_key:
-            print("[ERROR] GOOGLE_API_KEY is not set for AI Studio evaluation")
-            sys.exit(1)
+    if use_vertex:
+        provider_route = "vertex_ai"
+        client = genai.Client(vertexai=True, project=project, location=location)
+        print(f"📡 Provider: Google Cloud Vertex AI (Project: {project}, Location: {location})")
+    elif api_key:
+        provider_route = "ai_studio"
+        location = None
         client = genai.Client(api_key=api_key)
-
-    # 3. Model 事前疎通チェック (Pre-flight check)
-    print("\n🔍 Executing Pre-flight Check for candidate models...")
-    valid_models, skipped_models = validate_model_availability(client, TARGET_MODELS)
-    for vm in valid_models:
-        print(f"  ✅ Model '{vm}' is available and responsive.")
-    for sm in skipped_models:
-        print(f"  ⚠️ Model '{sm['model_id']}' failed pre-check: {sm['error']}. Skipping.")
-
-    if not valid_models:
-        print("[ERROR] No models are available for evaluation.")
+        print("📡 Provider: Google AI Studio (API Key)")
+    else:
+        print("❌ Error: No authentication provided. Set GOOGLE_API_KEY or configure Vertex AI ADC.")
         sys.exit(1)
 
-    # 4. ベンチマーク試行ループ
+    # 2. 事前疎通チェック (Pre-flight check)
+    print("\n🔍 Running pre-flight model availability check...")
+    valid_models, skipped_models = validate_model_availability(client, TARGET_MODELS)
+    print(f"  ✅ Available models: {valid_models}")
+    if skipped_models:
+        for sk in skipped_models:
+            print(f"  ⚠️ Skipped model: {sk['model_id']} (Reason: {sk['error']})")
+
+    if not valid_models:
+        print("❌ Error: No valid models available to evaluate. Aborting.")
+        sys.exit(1)
+
+    # 3. 実行パラメータおよび試行回数の設定
+    trials_per_case = int(os.getenv("EVAL_TRIALS", "3"))  # 既定 3 回試行
+    temperature = 0.0                                    # 決定論的固定
+    seed = 42                                            # 乱数シード固定
+    instruction_hash = compute_instruction_hash(DEFAULT_INSTRUCTION)
+
+    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    batch_start_dt = datetime.now()
+    batch_start_iso = batch_start_dt.isoformat()
+
+    print(f"\n⚙️ Parameters: Trials={trials_per_case} | Temp={temperature} | Seed={seed}")
+    print(f"📁 Benchmark Cases: {len(BENCHMARK_CASES)} enabled cases loaded from JSON")
+
+    # 4. 全ケース × 全モデル × 全試行のループ実行
     all_trial_records: List[Dict[str, Any]] = []
 
     for model_id in valid_models:
@@ -200,6 +238,7 @@ def run_benchmark():
                     assertions = []
                     status = "error"
                 else:
+                    # アサーション単位の詳細判定
                     score, reasons, assertions = Evaluator.evaluate_detailed(eval_type, response_text, expected)
                     status = "success"
                     case_scores.append(score)
@@ -231,7 +270,7 @@ def run_benchmark():
                 all_trial_records.append(record)
                 time.sleep(0.3)
 
-            # ケースの試行結果表示
+            # ケースの試行結果表示 (中央値)
             if case_scores:
                 median_score = sorted(case_scores)[len(case_scores)//2]
                 print(f"✅ Med: {median_score * 100:>3.0f} pts | Scores: {[int(s*100) for s in case_scores]}")
@@ -280,32 +319,36 @@ def run_benchmark():
         assertion_failures=assertion_failures
     )
 
+    results_dir = os.path.join(os.path.dirname(__file__), "results")
+    os.makedirs(results_dir, exist_ok=True)
+
     report_path = os.path.join(results_dir, f"eval_report_phase1_{timestamp_str}.md")
     latest_report_path = os.path.join(results_dir, "eval_report_latest.md")
-    raw_json_path = os.path.join(results_dir, f"eval_raw_phase1_{timestamp_str}.json")
-
-    json_payload = {
-        "batch_meta": batch_meta,
-        "records": all_trial_records,
-        "case_summary": {f"{k[0]}__{k[1]}": v for k, v in case_summary.items()},
-        "category_matrix": category_matrix,
-        "unstable_cases": unstable_cases
-    }
-
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report_text)
     with open(latest_report_path, "w", encoding="utf-8") as f:
         f.write(report_text)
-    with open(raw_json_path, "w", encoding="utf-8") as f:
-        json.dump(json_payload, f, ensure_ascii=False, indent=2)
 
-    print("\n" + "=" * 80)
-    print("📈 FINAL SUMMARY MATRIX (Median Scores with Sample Sizes)")
-    print(f"⏱️ Duration: {total_batch_duration:.2f}s | 💰 Cost: ${total_batch_cost:.5f}")
-    print("=" * 80)
-    print(report_text)
-    print("=" * 80)
-    print(f"📁 Reports saved to:\n  - {report_path}\n  - {raw_json_path}")
+    # 8. ローデータ JSON 保存
+    raw_output_path = os.path.join(results_dir, f"eval_raw_phase1_{timestamp_str}.json")
+    raw_payload = {
+        "batch_meta": batch_meta,
+        "records": all_trial_records,
+        "case_summary": {f"{k[0]}__{k[1]}": v for k, v in case_summary.items()},
+        "category_matrix": category_matrix,
+        "assertion_failures": assertion_failures,
+        "unstable_cases": unstable_cases
+    }
+    with open(raw_output_path, "w", encoding="utf-8") as f:
+        json.dump(raw_payload, f, ensure_ascii=False, indent=2)
+
+    print("\n" + "=" * 70)
+    print(f"🎉 Evaluation Complete! ({total_batch_duration:.1f}s, Total Cost: ${total_batch_cost:.6f})")
+    print(f"📄 Report written to: {report_path}")
+    print(f"📄 Latest Report at: {latest_report_path}")
+    print(f"💾 Raw Data saved to: {raw_output_path}")
+    print("=" * 70)
+    print("\n" + report_text)
 
 if __name__ == "__main__":
-    run_benchmark()
+    main()

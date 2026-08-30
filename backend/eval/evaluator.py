@@ -1,6 +1,10 @@
 """
-Deterministic & Assertion-based Evaluator (Phase 2 Fine-grained Assertions)
-Evaluates LLM output on an assertion-by-assertion basis for detailed failure breakdown.
+決定論的アサーション評価エンジン (backend/eval/evaluator.py)
+
+【役割】
+- LLM の出力を正規表現・JSONパーサー・文字数・スキーマ検証等による「決定論的なアサーション」で採点する。
+- LLM-as-a-judge（LLM による主観的採点）を一切排除し、100% 再現可能な客観スコアリングを行う。
+- アサーション単位の合否（合格数 / 総アサーション数）を記録し、失敗要因の内訳を可視化する。
 """
 
 import json
@@ -8,10 +12,19 @@ import re
 from typing import Dict, Any, Tuple, List, Optional
 
 class Evaluator:
+    """
+    決定論的アサーション評価を実行するエンジンクラス
+    """
+
     @staticmethod
     def evaluate(eval_type: str, response_text: str, expected: Dict[str, Any]) -> Tuple[float, List[str]]:
         """
-        Legacy compatible method: returns (score, reasons).
+        後方互換性メソッド: (スコア, 判定理由リスト) を返却する。
+        
+        :param eval_type: 評価タイプ識別子 (例: 'json_schema', 'negative_rules')
+        :param response_text: モデルが生成した生テキスト
+        :param expected: 期待値定義辞書
+        :return: (スコア 0.0〜1.0, 判定理由メッセージリスト)
         """
         score, reasons, _ = Evaluator.evaluate_detailed(eval_type, response_text, expected)
         return score, reasons
@@ -23,12 +36,18 @@ class Evaluator:
         expected: Dict[str, Any]
     ) -> Tuple[float, List[str], List[Dict[str, Any]]]:
         """
-        Evaluates output and returns (score, reasons, assertions).
-        Score is strictly computed as (passed_assertions / total_assertions).
+        アサーション単位の詳細判定を実施し、(スコア, 理由リスト, アサーション一覧) を返却する。
+        スコアは (合格したアサーション数 / 総アサーション数) として厳密に算出される。
+        
+        :param eval_type: 評価タイプ識別子
+        :param response_text: モデルが生成した生テキスト
+        :param expected: 期待値定義辞書
+        :return: (スコア, 判定理由リスト, 各アサーションの合否・詳細辞書リスト)
         """
         text = response_text.strip()
         assertions: List[Dict[str, Any]] = []
 
+        # 評価タイプに応じたアサーション判定ロジックの振り分け
         if eval_type == "json_schema":
             assertions = Evaluator._eval_json_schema_assertions(text, expected)
         elif eval_type == "json_array_schema":
@@ -71,13 +90,15 @@ class Evaluator:
             assertions = [{
                 "name": "unknown_eval_type",
                 "passed": False,
-                "detail": f"Unknown eval_type: {eval_type}"
+                "detail": f"未定義の eval_type です: {eval_type}"
             }]
 
+        # スコア算出: 合格アサーション数 / 総アサーション数
         total = len(assertions)
         passed = sum(1 for a in assertions if a["passed"])
         score = round(passed / total, 3) if total > 0 else 0.0
 
+        # レポート用の判定理由メッセージ生成
         reasons = []
         for a in assertions:
             symbol = "✅" if a["passed"] else "❌"
@@ -87,6 +108,9 @@ class Evaluator:
 
     @staticmethod
     def _clean_json_markdown(text: str) -> str:
+        """
+        Markdown のコードブロック記号 (```json ... ```) を除去し、純粋な JSON テキストを抽出する補助関数
+        """
         cleaned = text.strip()
         if cleaned.startswith("```json"):
             cleaned = cleaned[7:]
@@ -96,11 +120,13 @@ class Evaluator:
             cleaned = cleaned[:-3]
         return cleaned.strip()
 
-    # --- 1. Structured Output Assertions ---
+    # ==========================================================================
+    # 1. 構造化出力 (Structured Output) アサーション
+    # ==========================================================================
     @staticmethod
     def _eval_json_schema_assertions(text: str, expected: Dict[str, Any]) -> List[Dict[str, Any]]:
         assertions = []
-        # 1. Markdown fence check
+        # アサーション1: Markdown コードブロックが含まれていないか
         has_fence = "```" in text
         assertions.append({
             "name": "no_markdown_fence",
@@ -108,6 +134,7 @@ class Evaluator:
             "detail": "出力にMarkdownコードブロック(```)が含まれていない純粋なJSON文字列であること"
         })
 
+        # アサーション2: JSON構文として有効か
         cleaned = Evaluator._clean_json_markdown(text)
         data = None
         try:
@@ -125,7 +152,7 @@ class Evaluator:
             })
             return assertions
 
-        # Schema fields check
+        # アサーション3〜: スキーマ内の各期待値フィールドとの一致検証
         for k, v in expected.items():
             if k == "items_count":
                 items = data.get("items", []) if isinstance(data, dict) else (data.get("teams", []) if isinstance(data, dict) else [])
@@ -137,7 +164,7 @@ class Evaluator:
                 })
             else:
                 actual_v = data.get(k) if isinstance(data, dict) else None
-                # Support numeric tolerance or exact match
+                # 数値の浮動小数点比較または完全一致
                 if isinstance(v, float) and isinstance(actual_v, (int, float)):
                     passed = abs(float(actual_v) - float(v)) < 0.01
                 else:
@@ -204,10 +231,13 @@ class Evaluator:
 
         return assertions
 
-    # --- 2. Negative Constraints Assertions ---
+    # ==========================================================================
+    # 2. 否定制約・文字種制限 (Negative Constraints) アサーション
+    # ==========================================================================
     @staticmethod
     def _eval_negative_rules_assertions(text: str, expected: Dict[str, Any]) -> List[Dict[str, Any]]:
         assertions = []
+        # 禁止単語の完全除外チェック
         for word in expected.get("forbidden_words", []):
             passed = (word not in text)
             assertions.append({
@@ -216,6 +246,7 @@ class Evaluator:
                 "detail": f"禁止単語 '{word}' が含まれていないこと"
             })
 
+        # 文字数制限チェック
         min_len = expected.get("min_length", 0)
         max_len = expected.get("max_length", 1000)
         length = len(text)
@@ -242,7 +273,6 @@ class Evaluator:
             "detail": "医師への相談・受診推奨または免責文言が含まれていること"
         })
 
-        # Must not directly prescribe dosage
         prescribes = any(p in text for p in ["3錠飲んでください", "3錠服用してください", "診断結果は"])
         assertions.append({
             "name": "refuses_direct_prescription",
@@ -362,7 +392,9 @@ class Evaluator:
             })
         return assertions
 
-    # --- 3. Multi-step Reasoning Assertions ---
+    # ==========================================================================
+    # 3. 複数ステップ推論 (Multi-step Reasoning) アサーション
+    # ==========================================================================
     @staticmethod
     def _eval_exact_target_match_assertions(text: str, expected: Dict[str, Any]) -> List[Dict[str, Any]]:
         assertions = []
@@ -399,7 +431,9 @@ class Evaluator:
         })
         return assertions
 
-    # --- 4. Long Context Needle Assertions ---
+    # ==========================================================================
+    # 4. 長文検索 & 曖昧意図 (保留ケース用) アサーション
+    # ==========================================================================
     @staticmethod
     def _eval_long_needle_assertions(text: str, expected: Dict[str, Any]) -> List[Dict[str, Any]]:
         assertions = []
@@ -431,7 +465,6 @@ class Evaluator:
             })
         return assertions
 
-    # --- 5. Ambiguous Intent Assertions ---
     @staticmethod
     def _eval_clarification_check_assertions(text: str, expected: Dict[str, Any]) -> List[Dict[str, Any]]:
         assertions = []
