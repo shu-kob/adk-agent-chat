@@ -1,109 +1,44 @@
 # ADK Agent Chat
 
-Google Agent Development Kit (ADK) を活用した、React (フロントエンド) + FastAPI (バックエンド) による AI チャットボットアプリケーションです。
-AI モデルには Google AI Studio の **`gemini-3.5-flash-lite`** を使用しています。
+Google Agent Development Kit (ADK) を活用した、React + FastAPI による AI チャットボットアプリケーションです。
 
 ---
 
-## 🛠 ディレクトリ構成
+## 📚 ドキュメント一覧
 
-```text
-adk-agent-chat/
-├── backend/                # FastAPI (Python) バックエンド
-│   ├── agent.py            # Google ADK Agent / Runner / Session 管理
-│   ├── config.py           # 環境変数・モデル設定
-│   ├── main.py             # FastAPI ルーティング・API エンドポイント
-│   ├── requirements.txt    # Python 依存ライブラリ
-│   └── .env.example        # 環境変数サンプル
-├── frontend/               # React + Vite + TypeScript フロントエンド
-│   ├── src/                # UI コンポーネントおよびスタイル
-│   ├── package.json        # Node.js 依存ライブラリ
-│   └── vite.config.ts      # Vite 設定 (プロキシ設定含む)
-└── README.md
-```
+- 📘 **[詳細仕様書 (docs/SPECIFICATION.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION.md)**: システム設計、API 定義、セッション管理、ベンチマーク仕様
+- 📗 **[評価基盤再設計 追補仕様 (docs/SPECIFICATION_ADDENDUM_v1.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md)**: 測定信頼性確保・データセット拡充・トラフィックリプレイ基盤
+- 📊 **[モデル評価レポート (eval_matrix_analysis.md)](file:///Users/kobuchishu/programing/adk-agent-chat/backend/eval/results/eval_matrix_analysis.md)**: Gemini 各世代の評価マトリクスと性能考察
 
 ---
 
-## 🚀 クイックスタートガイド
+## 🚀 クイックスタート
 
-### 1. バックエンド (FastAPI) の準備と起動
-
-#### (1) 環境変数の設定
-`backend` ディレクトリ配下に `.env` ファイルを作成し、Google AI Studio の API キーを設定します。
+### 1. バックエンド起動 (FastAPI)
 
 ```bash
 cd backend
-cp .env.example .env
-```
-
-`.env` の内容:
-```env
-GOOGLE_API_KEY=your_google_ai_studio_api_key_here
-GEMINI_MODEL=gemini-3.5-flash-lite
-HOST=0.0.0.0
-PORT=8000
-```
-
-#### (2) 依存ライブラリのインストール
-仮想環境を作成してライブラリをインストールします。
-
-```bash
-# 仮想環境作成
-python3 -m venv venv
-source venv/bin/activate  # macOS / Linux
-
-# パッケージインストール
+cp .env.example .env  # GOOGLE_API_KEY または Vertex AI 設定を入力
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-```
-
-#### (3) バックエンドサーバーの起動
-
-```bash
 python3 main.py
-# または
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
+> `http://localhost:8000/api/health` でヘルスチェックが確認できます。
 
-サーバーが起動すると `http://localhost:8000/api/health` にてヘルスチェックが確認できます。
-
----
-
-### 2. フロントエンド (React / Vite) の準備と起動
-
-新しいターミナルを開き、`frontend` ディレクトリへ移動して起動します。
-
-#### (1) パッケージのインストール
+### 2. フロントエンド起動 (React)
 
 ```bash
 cd frontend
 npm install
-```
-
-#### (2) 開発サーバーの起動
-
-```bash
 npm run dev
 ```
-
-ブラウザで `http://localhost:3000` にアクセスすると、チャットボット UI が表示されます。
-
----
-
-## 🔌 主な API エンドポイント
-
-| メソッド | パス | 説明 |
-| :--- | :--- | :--- |
-| `GET` | `/api/health` | バックエンドおよびモデル状態チェック |
-| `GET` | `/api/config` | 設定情報（モデル名等）の取得 |
-| `POST` | `/api/chat` | メッセージ送信 & AI レスポンス取得 |
-| `POST` | `/api/sessions/reset` | 会話セッションのリセット |
+> `http://localhost:3000` にアクセスしてチャットを開始できます。
 
 ---
 
-## 💡 技術スタック
+## 💡 技術スタック概要
 
-- **Framework (Frontend)**: React 18, Vite, TypeScript
-- **Styling**: Vanilla CSS (Modern Dark Mode, Glassmorphism, CSS Variables)
-- **Framework (Backend)**: Python 3.10+, FastAPI, Uvicorn
-- **AI / Agent Core**: Google Agent Development Kit (`google-adk`), Google Gen AI SDK (`google-genai`)
-- **LLM Model**: `gemini-3.5-flash-lite` (Google AI Studio)
+- **Frontend**: React 18, TypeScript, Vite, Vanilla CSS (Dark Mode)
+- **Backend**: Python 3.10+, FastAPI, Uvicorn
+- **AI Core**: Google Agent Development Kit (`google-adk`), Google Gen AI SDK (`google-genai`)
+- **Evaluation**: 決定論的アサーションエンジン (`backend/eval`)
