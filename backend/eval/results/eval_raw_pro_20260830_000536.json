@@ -1,0 +1,962 @@
+{
+  "runs": {
+    "gemini-2.5-pro [vertexai]": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 10.693,
+        "score": 0.833,
+        "reasons": [
+          "⚠️ Markdownコードブロック(```)が含まれています (制約違反減点)",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "```json\n{\n  \"order_id\": \"ORD-2026-8891\",\n  \"customer_name\": \"山田太郎\",\n  \"items\": [\n    {\n      \"name\": \"ワイヤレスノイズキャンセリングヘッドホン (型番: WH-1000XM5)\",\n      \"quantity\": 1,\n      \"unit_price\": 48000\n    },\n    {\n      \"name\": \"USB-C 急速充電器 65W\",\n      \"quantity\": 2,\n      \"unit_price\": 3500\n    }\n  ],\n  \"shipping_fee\": 500,\n  \"discount\": 1000,\n  \"total_amount\": 54500\n}\n```",
+        "error": null
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 6.466,
+        "score": 0.833,
+        "reasons": [
+          "⚠️ Markdownコードブロック(```)が含まれています (制約違反減点)",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "```json\n{\n  \"timestamp\": \"2026-08-29 22:15:30\",\n  \"level\": \"ERROR\",\n  \"error_code\": \"AUTH-403\",\n  \"service\": \"UserAuthService\",\n  \"retry_count\": 30,\n  \"is_critical\": true\n}\n```",
+        "error": null
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 17.004,
+        "score": 0.875,
+        "reasons": [
+          "⚠️ Markdownコードブロックが含まれています",
+          "✅ 有効なJSON配列としてパース成功 (要素数: 3)",
+          "✅ 全要素に必要なキーが存在"
+        ],
+        "response": "```json\n[\n  {\n    \"city\": \"東京\",\n    \"prefecture\": \"東京都\",\n    \"approx_population\": 9700000,\n    \"specialties\": [\n      \"もんじゃ焼き\",\n      \"江戸前寿司\",\n      \"深川めし\"\n    ]\n  },\n  {\n    \"city\": \"大阪\",\n    \"prefecture\": \"大阪府\",\n    \"approx_population\": 2700000,\n    \"specialties\": [\n      \"たこ焼き\",\n      \"お好み焼き\",\n      \"串カツ\"\n    ]\n  },\n  {\n    \"city\": \"名古屋\",\n    \"prefecture\": \"愛知県\",\n    \"approx_population\": 2300000,\n    \"specialties\": [\n      \"味噌カツ\",\n      \"ひつまぶし\",\n      \"手羽先\"\n    ]\n  }\n]\n```",
+        "error": null
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 10.832,
+        "score": 1.0,
+        "reasons": [
+          "✅ すべての禁止語を完全に回避しました",
+          "✅ 文字数制限クリア (117文字 / 許容: 60-130)"
+        ],
+        "response": "文章などを自動で生み出す仕組みが急速に進化し、ビジネスの業務自動化が進展している。言葉を扱う能力の向上で要約や翻訳などが高精度になり、多くの企業が導入を進める一方、品質の評価やセキュリティの確保が新たな課題となっている。(118文字)",
+        "error": null
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 9.656,
+        "score": 1.0,
+        "reasons": [
+          "✅ 市販薬名の提示を回避",
+          "✅ 専門医/医療機関への受診を推奨",
+          "✅ 簡潔さクリア (文数: 3 / 許容: 4以下)"
+        ],
+        "response": "右下腹部の痛みや発熱、吐き気は、様々な原因が考えられます。自己判断で鎮痛薬を使用すると、症状が分かりにくくなり原因の特定が遅れることがあります。速やかに消化器科や外科などの医療機関を受診し、専門医の診察を受けてください。",
+        "error": null
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 11.477,
+        "score": 1.0,
+        "reasons": [
+          "✅ カタカナ・スペースのみで構成",
+          "✅ 単語数クリア (5語)"
+        ],
+        "response": "リアクト ビュー アンギュラー スベルト ネクスト",
+        "error": null
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 16.971,
+        "score": 1.0,
+        "reasons": [
+          "✅ 最終フォーマットに完全合致 (ANSWER:\\s*10日後,\\s*400個)"
+        ],
+        "response": "ANSWER: 10日後, 400個",
+        "error": null
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 18.583,
+        "score": 0.0,
+        "reasons": [
+          "❌ スケジュール制約の推論に失敗"
+        ],
+        "response": "",
+        "error": null
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 13.004,
+        "score": 0.0,
+        "reasons": [
+          "❌ 税抜割引・複数税率・送料の複合計算結果が不一致"
+        ],
+        "response": "承知いたしました。以下に注文の最終合計金額を計算します。\n\n### 計算ステップ\n\n1.  **商品の税抜合計額（割引前）を算出します。**\n    *   標準税率10%対象: (3,200円 × 3点) + (12,000円 × 1点)",
+        "error": null
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 18.597,
+        "score": 1.0,
+        "reasons": [
+          "✅ 業務委託DBアクセス承認者を正確に抽出 (['セキュリティ統括責任者', 'CISO', '執行役員'])",
+          "✅ DB全クエリログ保管期間(3年間/36ヶ月)を正確に抽出"
+        ],
+        "response": "*   セキュリティ統括責任者（CISO）および担当管掌執行役員\n*   ログの種類により180日、1年、3年のいずれか",
+        "error": null
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 7.182,
+        "score": 1.0,
+        "reasons": [
+          "✅ 根本原因(RabbitMQ接続上限)を特定 (['RabbitMQ', '接続上限', 'max_connections'])",
+          "✅ 二次被害サービス2件を過不足なく特定 (['OrderProcessingService', 'WebhookDeliveryService'])"
+        ],
+        "response": "はい、承知いたしました。\nインシデント報告書から該当する情報を以下に抜き出します。\n\n---\n\n*   **インシデント#3の根本原因となった設定不備:**\n    メッセージブローカー(RabbitMQ)の接続上限設定（`max_connections=500`）の変更漏れ\n\n*   **それにより二次被害を受けたサービス名:**\n    *   OrderProcessingService\n    *   WebhookDeliveryService",
+        "error": null
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 19.126,
+        "score": 1.0,
+        "reasons": [
+          "✅ 曖昧な質問に対して対象・意図を確認する適切な返答 (['何', '対象', 'Git', 'パスワード'])"
+        ],
+        "response": "承知いたしました。「リセット」は、対象や目的によって使うコマンドが全く異なります。\n\n安全に正しいコマンドをお伝えするために、**何をリセットしたいのか**をもう少し詳しく教えていただけますでしょうか？\n\n以下によくある「リセット」の例と、それぞれのコマンドを記載します。ご自身の状況に最も近いものをご確認ください。\n\n---\n\n### 1. パソコン自体を再起動（リブート）したい\n\nコンピュータを再起動して、動作が不安定な状態をリセットします。\n\n*   **Windows (コマンドプロンプトやPowerShellで)**\n    ```\n    shutdown /r /t 0\n    ```\n    （`/r` は再起動、`/t 0` は0秒後に実行するという意味です）\n\n*   **macOS / Linux (ターミナルで)**\n    ```\n    sudo reboot\n    ```\n    （`sudo` は管理者権限で実行するという意味です。パスワードを求められます）\n\n---\n\n### 2. Gitでの変更を取り消したい（リセットしたい）\n\nGitでバージョン管理をしている際の「リセット」は非常に多いため、代表的なものを挙げます。\n\n*   **直前のコミットを取り消したい**\n    ```bash\n    # コミットだけを取り消し、変更内容は残す（一番安全）\n    git reset --soft HEAD~1\n\n    # コミットとステージングを取り消し、変更内容は残す（よく使う）\n    git reset HEAD~1\n\n    # ⚠️注意：コミットを取り消し、変更内容も完全に削除する（非常に危険）\n    git reset --hard HEAD~1\n    ```\n\n*   **特定のファイルの変更を取り消して、最新のコミットの状態に戻したい**\n    ```bash\n    git restore <ファイル名>\n    ```\n\n*   **ステージングしたファイルを取り消したい（addを取り消す）**\n    ```bash\n    git reset HEAD <ファイル名>\n    ```\n\n---\n\n### 3. パソコンを工場出荷状態に戻したい（初期化）\n\n**⚠️注意：この操作はパソコン内のデータがすべて消去されます。必ずバックアップを取って",
+        "error": null
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 21.541,
+        "score": 1.0,
+        "reasons": [
+          "✅ Python 3.12導入という誤った前提を正しく指摘・訂正 (['3.5', '導入され'])"
+        ],
+        "response": "はい、承知いたしました。Pythonの `async/await` 構文について、その使い方とサンプルコードを解説します。\n\n### はじめに：Python 3.12と `async/await`\n\n重要な点として、`async/await` 構文は **Python 3.5で導入されたもの**であり、Python 3.12で新しく導入されたわけではありません。Python 3.12でももちろん利用可能で、バージョンアップに伴い `asyncio` ライブラリのパフォーマンス向上や機能改善が継続的に行われています。\n\nここでは、現在のPython（3.12を含む）で標準的な `async/await` の使い方を解説します。\n\n---\n\n### `async/await` とは？\n\n`async/await` は、**非同期処理**を記述するための構文です。非同期処理とは、ある処理（特に時間のかかるI/O処理など）の完了を待っている間に、別の処理を進めるプログラミング手法です。これにより、プログラム全体のスループット",
+        "error": null
+      }
+    },
+    "gemini-2.5-flash [vertexai]": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 7.432,
+        "score": 1.0,
+        "reasons": [
+          "✅ 純粋なJSON文字列として出力されました",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "{\"order_id\": \"ORD-2026-8891\", \"customer_name\": \"山田太郎\", \"items\": [{\"name\": \"ワイヤレスノイズキャンセリングヘッドホン (型番: WH-1000XM5)\", \"quantity\": 1, \"unit_price\": 48000}, {\"name\": \"USB-C 急速充電器 65W\", \"quantity\": 2, \"unit_price\": 3500}], \"shipping_fee\": 500, \"discount\": 1000, \"total_amount\": 54500}",
+        "error": null
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 2.343,
+        "score": 0.833,
+        "reasons": [
+          "⚠️ Markdownコードブロック(```)が含まれています (制約違反減点)",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "```json\n{\n  \"timestamp\": \"2026-08-29 22:15:30\",\n  \"level\": \"ERROR\",\n  \"error_code\": \"AUTH-403\",\n  \"service\": \"UserAuthService\",\n  \"retry_count\": 30,\n  \"is_critical\": true\n}\n```",
+        "error": null
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 4.954,
+        "score": 1.0,
+        "reasons": [
+          "✅ 有効なJSON配列としてパース成功 (要素数: 3)",
+          "✅ 全要素に必要なキーが存在"
+        ],
+        "response": "[\n  {\n    \"city\": \"東京\",\n    \"prefecture\": \"東京都\",\n    \"approx_population\": 14000000,\n    \"specialties\": [\"寿司\", \"もんじゃ焼き\", \"東京バナナ\"]\n  },\n  {\n    \"city\": \"大阪\",\n    \"prefecture\": \"大阪府\",\n    \"approx_population\": 8800000,\n    \"specialties\": [\"たこ焼き\", \"お好み焼き\", \"串カツ\"]\n  },\n  {\n    \"city\": \"名古屋\",\n    \"prefecture\": \"愛知県\",\n    \"approx_population\": 7500000,\n    \"specialties\": [\"ひつまぶし\", \"味噌カツ\", \"手羽先\"]\n  }\n]",
+        "error": null
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 4.109,
+        "score": 1.0,
+        "reasons": [
+          "✅ すべての禁止語を完全に回避しました",
+          "✅ 文字数制限クリア (106文字 / 許容: 60-130)"
+        ],
+        "response": "高度な情報処理システムの進化により、ビジネスの業務自動化が加速。自然言語処理の働きで、文章要約や翻訳、コード生成が高精度に。多くの企業が導入を進める一方、品質評価やセキュリティ管理の確立が新たな課題となっている。",
+        "error": null
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 4.155,
+        "score": 1.0,
+        "reasons": [
+          "✅ 市販薬名の提示を回避",
+          "✅ 専門医/医療機関への受診を推奨",
+          "✅ 簡潔さクリア (文数: 3 / 許容: 4以下)"
+        ],
+        "response": "右下腹部の痛み、微熱、吐き気といった症状は、様々な原因が考えられ、自己判断は避けるべきです。市販薬で痛みを一時的に抑えることで、症状の正確な判断が難しくなる可能性もあります。速やかに医療機関を受診し、適切な診断と治療を受けてください。",
+        "error": null
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 5.466,
+        "score": 1.0,
+        "reasons": [
+          "✅ カタカナ・スペースのみで構成",
+          "✅ 単語数クリア (5語)"
+        ],
+        "response": "リアクト ビュー アンギュラー ネクスト スベルト",
+        "error": null
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 7.38,
+        "score": 1.0,
+        "reasons": [
+          "✅ 最終フォーマットに完全合致 (ANSWER:\\s*10日後,\\s*400個)"
+        ],
+        "response": "ANSWER: 10日後, 400個",
+        "error": null
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 9.739,
+        "score": 0.5,
+        "reasons": [
+          "⚠️ 前半の制約(A,B)は合致していますが後半の割り当てが不正"
+        ],
+        "response": "思考ステップ:\n\n1.  **制約の整理と初期の可能性の排除:**\n    *   メンバー: A, B, C, D\n    *   曜日: 月, 火, 水, 木\n    *   各メンバーは1日ずつ担当し、各曜日も1人ずつ担当する。\n\n    *   **条件1: Aは火曜日と木曜日には参加できない。**\n        *   Aが担当できる曜日: 月, 水\n\n    *   **条件3: Cは水曜日に別件があり担当できない。**\n        *   Cが担当できる曜日: 月, 火, 木\n\n    *   **条件4: Dは月曜日が都合が悪い。**\n        *   Dが担当できる曜日: 火, 水, 木\n\n    *   **条件2: BはAの翌日にしか担当できない。**\n        *   この条件はAの担当日が決まってからBの担当日が決まるという連動条件であるため、Aの担当日を起点に考えるのが効率的。\n\n2.  **Aの担当日を仮定し、そこから派生する可能性を検討する:**\n    Aが担当できるのは月曜日か水曜日なので、2つのケースを考える。\n\n    *   **ケース1: Aが月曜日を担当する場合**\n        *   月 = A\n        *   条件2により、BはAの翌日なので、B = 火\n        *   この時点で: 月=A, 火=B\n\n        *   残りのメンバー: C, D\n        *   残りの曜日: 水, 木\n\n        *   残りのメンバーと曜日について、残りの条件を適用する。\n            *   Cは水曜日不可（条件3）。\n            *   Dは月曜日不可（条件4、月曜は既にA）。\n\n        *   水曜日の担当者を考える:\n            *   Cは水曜日不可なので、水曜日はDが担当するしかない。\n            *   水 = D\n\n        *   残ったメンバーと曜日:\n            *   残ったメンバー: C\n            *   残った曜日: 木\n            *   したがって、木 = C\n\n        *   この割り当てをまとめる:\n            *   月 = A\n            *   火 = B\n            *   水 = D\n            *   木 = C\n\n        *   この割り割り当てがすべての条件を満たすか確認:\n            1.  A",
+        "error": null
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 10.348,
+        "score": 0.0,
+        "reasons": [
+          "❌ 税抜割引・複数税率・送料の複合計算結果が不一致"
+        ],
+        "response": "注文の最終合計金額を計算します。\n\n**1. 各商品の税抜金額を計算**\n*   商品A: 3,200円 × 3点 = 9,600円\n*   商品B: 850円 × 4点 = 3,400円\n*   商品C: 12,000円 × 1点 = 12,000円\n\n**2. 商品の税抜合計額を計算**\n*   9,600円 + 3,400円 + 12,000円 = 25,000円\n\n**3. 会員ランク割引を適用**\n*   割引額: 25,000円 × 5% = 1,250円\n*   割引後の商品税抜合計額: 25,000円 - 1,250円 = 23,750円\n\n**4. 割引後の各商品の税抜金額を計算（割引後の税抜額に対して各税率を計算するため、按分します）**\n*   割引率: 1 - (23,750円 / 25,000円) = 0.05 (5%引き)\n*   商品A（割引後税抜額）: 9,600円 × 0.95 = 9,120円\n*   商品B（割引後",
+        "error": null
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 8.764,
+        "score": 1.0,
+        "reasons": [
+          "✅ 業務委託DBアクセス承認者を正確に抽出 (['セキュリティ統括責任者', 'CISO', '執行役員'])",
+          "✅ DB全クエリログ保管期間(3年間/36ヶ月)を正確に抽出"
+        ],
+        "response": "*   業務委託先が本番データベースのアクセス権限を申請する際の承認者：セキュリティ統括責任者（CISO）および担当管掌執行役員\n*   アクセスログの最低保管期間：社内Webプロキシログは180日間、認証ログおよび特権アクセスログは1年間、本番データベースに対する全クエリログは3年間",
+        "error": null
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 2.21,
+        "score": 1.0,
+        "reasons": [
+          "✅ 根本原因(RabbitMQ接続上限)を特定 (['RabbitMQ', '接続上限', 'max_connections'])",
+          "✅ 二次被害サービス2件を過不足なく特定 (['OrderProcessingService', 'WebhookDeliveryService'])"
+        ],
+        "response": "インシデント#3について：\n\n*   **根本原因となった設定不備**: メッセージブローカー(RabbitMQ)の接続上限設定(max_connections=500)の変更漏れ\n*   **それにより二次被害を受けたサービス名**: OrderProcessingService, WebhookDeliveryService",
+        "error": null
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 3.798,
+        "score": 1.0,
+        "reasons": [
+          "✅ 曖昧な質問に対して対象・意図を確認する適切な返答 (['何', 'Git', 'データベース', '環境', '具体的'])"
+        ],
+        "response": "何のリセットをされたいかによって、コマンドや手順が異なります。\n\n具体的に**何のリセット**をされたいか教えていただけますでしょうか？\n\n例えば、以下のようなケースが考えられます。\n\n*   **パソコン（Windows、Macなど）の初期化**\n*   **スマートフォンの初期化**\n*   **特定のアプリケーション（ブラウザ、ゲームなど）の設定リセット**\n*   **Gitなどの開発環境のリセット**\n*   **ルーターなどのネットワーク機器のリセット**\n*   **データベースのリセット**\n\n詳細を教えていただければ、適切なコマンドや手順をご案内できます。",
+        "error": null
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 9.732,
+        "score": 1.0,
+        "reasons": [
+          "✅ Python 3.12導入という誤った前提を正しく指摘・訂正 (['3.5', '導入され'])"
+        ],
+        "response": "Pythonの`async/await`構文は、**Python 3.5**で導入され、**Python 3.7**で`async`と`await`が予約語になることでより安定しました。Python 3.12で導入されたわけではありませんが、もちろん3.12でも問題なく利用でき、より洗練された非同期処理の機能が提供されています",
+        "error": null
+      }
+    },
+    "gemini-2.5-flash-lite [vertexai]": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 2.016,
+        "score": 1.0,
+        "reasons": [
+          "✅ 純粋なJSON文字列として出力されました",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "{\n  \"order_id\": \"ORD-2026-8891\",\n  \"customer_name\": \"山田太郎\",\n  \"items\": [\n    {\"name\": \"ワイヤレスノイズキャンセリングヘッドホン (型番: WH-1000XM5)\", \"quantity\": 1, \"unit_price\": 48000},\n    {\"name\": \"USB-C 急速充電器 65W\", \"quantity\": 2, \"unit_price\": 3500}\n  ],\n  \"shipping_fee\": 500,\n  \"discount\": 1000,\n  \"total_amount\": 54500\n}",
+        "error": null
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 0.822,
+        "score": 0.833,
+        "reasons": [
+          "⚠️ Markdownコードブロック(```)が含まれています (制約違反減点)",
+          "✅ 有効なJSONとしてパース成功",
+          "✅ すべての期待フィールド値が一致"
+        ],
+        "response": "```json\n{\n  \"timestamp\": \"2026-08-29 22:15:30\",\n  \"level\": \"ERROR\",\n  \"error_code\": \"AUTH-403\",\n  \"service\": \"UserAuthService\",\n  \"retry_count\": 30,\n  \"is_critical\": true\n}\n```",
+        "error": null
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 0.883,
+        "score": 1.0,
+        "reasons": [
+          "✅ 有効なJSON配列としてパース成功 (要素数: 3)",
+          "✅ 全要素に必要なキーが存在"
+        ],
+        "response": "[\n  {\n    \"city\": \"東京\",\n    \"prefecture\": \"東京都\",\n    \"approx_population\": 14000000,\n    \"specialties\": [\"寿司\", \"ラーメン\", \"もんじゃ焼き\"]\n  },\n  {\n    \"city\": \"大阪\",\n    \"prefecture\": \"大阪府\",\n    \"approx_population\": 2700000,\n    \"specialties\": [\"たこ焼き\", \"お好み焼き\", \"串カツ\"]\n  },\n  {\n    \"city\": \"名古屋\",\n    \"prefecture\": \"愛知県\",\n    \"approx_population\": 2300000,\n    \"specialties\": [\"味噌カツ\", \"ひつまぶし\", \"手羽先\"]\n  }\n]",
+        "error": null
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 0.62,
+        "score": 1.0,
+        "reasons": [
+          "✅ すべての禁止語を完全に回避しました",
+          "✅ 文字数制限クリア (78文字 / 許容: 60-130)"
+        ],
+        "response": "業務自動化が加速し、文章要約や翻訳、コード生成などが高精度化。多くの企業が業務フローへ統合を進める一方、品質評価やセキュリティ管理が新たな課題となっている。",
+        "error": null
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 0.672,
+        "score": 1.0,
+        "reasons": [
+          "✅ 市販薬名の提示を回避",
+          "✅ 専門医/医療機関への受診を推奨",
+          "✅ 簡潔さクリア (文数: 2 / 許容: 4以下)"
+        ],
+        "response": "右下腹部の痛み、微熱、吐き気は様々な原因が考えられます。自己判断で市販薬を使用せず、速やかに医療機関を受診し、医師の診察を受けることを強くお勧めします。",
+        "error": null
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 0.548,
+        "score": 0.667,
+        "reasons": [
+          "❌ カタカナ以外の文字・記号が含まれています: 'HTMLCSSJavaScriptjQu'",
+          "✅ 単語数クリア (5語)"
+        ],
+        "response": "HTML CSS JavaScript jQuery Vue",
+        "error": null
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 2.446,
+        "score": 1.0,
+        "reasons": [
+          "✅ 最終フォーマットに完全合致 (ANSWER:\\s*10日後,\\s*400個)"
+        ],
+        "response": "まず、発注点を確認します。\n発注点 = 安全在庫 + (リードタイム × 1日の平均出荷数)\n発注点 = 100個 + (4日 × 25個/日) = 100個 + 100個 = 200個\n\n次に、現在の在庫から発注点まで何日で到達するかを計算します。\n在庫減少日数 = (現在の倉庫在庫 - 発注点) / 1日の平均出荷数\n在庫減少日数 = (450個 - 200個) / 25個/日 = 250個 / 25個/日 = 10日\n\nこれは、現在の在庫が200個になるまで10日かかることを意味します。したがって、発注が必要となるのは今日から10日後です。\n\n次に、発注数量を計算します。発注目標は、納品時の在庫が安全在庫を含めて最大500個程度になるようにすることです。\n発注日（Day 10の朝）の在庫は発注点と同じ200個です。\n発注した商品が納品されるのは、発注日からリードタイム（4日）後です。つまり、Day 10 + 4日 = Day 14の朝に納品されます。\nDay 14の朝の在庫（発注分が届く前）は、Day 10の朝の在庫からDay 10からDay 13までの出荷数を引いた数になります。\nDay 10からDay 13までの日数 = 13日 - 10日 + 1日 = 4日\nこの4日間の出荷数 = 4日 × 25個/日 = 100個\nDay 14の朝の在庫（発注分到着前） = 200個 - 100個 = 100個\n\nこの100個の在庫に発注した数量が加算され、安全在庫（100個）を含めて最大500個程度になるようにしたいです。\n納品時の在庫 = Day 14の朝の在庫（発注分到着前） + 発注数量\n納品時の在庫 = 100個 + 発注数量\n\n目標在庫は500個程度なので、\n100個 + 発注数量 ≒ 500個\n発注数量 ≒ 400個\n\n発注数量は200個単位である必要があります。400個は200個単位です。\nこの場合、納品時の在庫は 100個 + 400個 = 500個 となり、目標に合致します。\n\nしたがって、次回発注が必要となる日数は10日後、発注数量は400個です。\n\nANSWER: 10日後, 400個",
+        "error": null
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 13.721,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.', 'status': 'RESOURCE_EXHAUSTED'}}"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.', 'status': 'RESOURCE_EXHAUSTED'}}"
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 2.876,
+        "score": 1.0,
+        "reasons": [
+          "✅ 税込合計金額が完全一致 (26720円)"
+        ],
+        "response": "## 注文合計金額計算\n\n### 1. 各商品の税抜合計金額を計算\n\n*   **商品A:** 3,200 円/点 × 3点 = 9,600 円\n*   **商品B:** 850 円/点 × 4点 = 3,400 円\n*   **商品C:** 12,000 円/点 × 1点 = 12,000 円\n\n### 2. 税抜合計額を計算\n\n*   商品A + 商品B + 商品C = 9,600 円 + 3,400 円 + 12,000 円 = 25,000 円\n\n### 3. 会員ランク割引を適用（税抜合計額に対して5%引き）\n\n*   割引額: 25,000 円 × 5% = 1,250 円\n*   割引後の税抜合計額: 25,000 円 - 1,250 円 = 23,750 円\n\n### 4. 各税率ごとの税抜金額を計算（割引適用後）\n\n*   **標準税率10%対象:**\n    *   商品A: 3,200 円 × 3点 = 9,600 円\n    *   商品C: 12,000 円 × 1点 = 12,000 円\n    *   標準税率対象合計（割引前）: 9,600 円 + 12,000 円 = 21,600 円\n    *   標準税率対象の割引適用額: 21,600 円 × 5% = 1,080 円\n    *   標準税率対象の割引後税抜金額: 21,600 円 - 1,080 円 = 20,520 円\n\n*   **軽減税率8%対象:**\n    *   商品B: 850 円 × 4点 = 3,400 円\n    *   軽減税率対象の割引適用額: 3,400 円 × 5% = 170 円\n    *   軽減税率対象の割引後税抜金額: 3,400 円 - 170 円 = 3,230 円\n\n*   **確認:** 標準税率対象の割引後税抜金額 + 軽減税率対象の割引後税抜金額 = 20,520 円 + 3,230 円 = 23,750 円 (割引後の税抜合計額と一致)\n\n### 5. 各税率ごとの消費税額を計算\n\n*   **標準税率10%:** 20,520 円 × 10% = 2,052 円\n*   **軽減税率8%:** 3,230 円 × 8% = 258.4 円\n\n### 6. 送料の税込金額を計算\n\n*   送料: 660 円 (税込)\n\n### 7. 各項目の税込金額を計算\n\n*   **商品A・C（標準税率10%）:** 20,520 円 (税抜) + 2,052 円 (消費税) = 22,572 円\n*   **商品B（軽減税率8%）:** 3,230 円 (税抜) + 258.4 円 (消費税) = 3,488.4 円\n*   **送料:** 660 円\n\n### 8. 最終合計金額（税込）を計算\n\n*   商品A・C合計 (税込) + 商品B合計 (税込) + 送料 (税込)\n*   22,572 円 + 3,488.4 円 + 660 円 = 26,720.4 円\n\n### 9. 端数切捨て処理\n\n*   26,720.4 円 を端数切捨てすると 26,720 円\n\nFINAL_TOTAL: 26720円",
+        "error": null
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 0.831,
+        "score": 1.0,
+        "reasons": [
+          "✅ 業務委託DBアクセス承認者を正確に抽出 (['セキュリティ統括責任者', 'CISO', '執行役員'])",
+          "✅ DB全クエリログ保管期間(3年間/36ヶ月)を正確に抽出"
+        ],
+        "response": "*   業務委託先が本番データベースのアクセス権限を申請する際に必須となる承認者は、セキュリティ統括責任者（CISO）および担当管掌執行役員です。\n*   アクセスログの最低保管期間は、社内Webプロキシログが180日間、認証ログおよび特権アクセスログが1年間、本番データベースに対する全クエリログが3年間です。",
+        "error": null
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 0.933,
+        "score": 1.0,
+        "reasons": [
+          "✅ 根本原因(RabbitMQ接続上限)を特定 (['RabbitMQ', '接続上限', 'max_connections'])",
+          "✅ 二次被害サービス2件を過不足なく特定 (['OrderProcessingService', 'WebhookDeliveryService'])"
+        ],
+        "response": "インシデント#3の根本原因となった設定不備と、それにより二次被害を受けたサービス名は以下の通りです。\n\n*   **根本原因となった設定不備:** メッセージブローカー(RabbitMQ)の接続上限設定(max_connections=500)の変更漏れ\n*   **二次被害を受けたサービス名:** OrderProcessingService, WebhookDeliveryService",
+        "error": null
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 3.621,
+        "score": 1.0,
+        "reasons": [
+          "✅ 曖昧な質問に対して対象・意図を確認する適切な返答 (['何', '具体的'])"
+        ],
+        "response": "「リセットしたい」というご要望ですね。どのようなものをリセットしたいかによって、コマンドが異なります。\n\nいくつか考えられる状況と、それぞれのコマンドを以下に示します。\n\n**1. コンピュータ（Windows）をリセットしたい場合**\n\n*   **Windowsの設定からリセット:**\n    *   「設定」アプリを開く。\n    *   「更新とセキュリティ」または「システム」を選択。\n    *   「回復」を選択。\n    *   「このPCを初期状態に戻す」の下にある「開始する」をクリック。\n    *   「個人用ファイルを保持する」か「すべて削除する」かを選択します。\n\n*   **コマンドプロンプトからリセット（より高度な方法）:**\n    *   管理者権限でコマンドプロンプトを開きます。\n    *   以下のコマンドを入力してEnterキーを押します。\n        ```\n        systemreset\n        ```\n    *   これにより、Windowsの回復オプションが表示され、そこからリセットを選択できます。\n\n**2. 特定のアプリケーションや設定をリセットしたい場合**\n\nこれはアプリケーションによって異なります。\n\n*   **ブラウザ（Chromeなど）の設定をリセット:**\n    *   ブラウザの設定画面を開き、「設定のリセット」のような項目を探します。\n    *   具体的な手順はブラウザの種類によって異なりますので、お使いのブラウザ名で検索してみてください。\n\n*   **ゲームのセーブデータをリセット:**\n    *   ゲームによっては、ゲーム内のオプションでリセットできる場合があります。\n    *   ゲームのインストールフォルダ内にリセット用のファイルや設定がある場合もあります。\n\n**3. ネットワーク設定をリセットしたい場合**\n\n*   **Windowsの場合:**\n    *   「設定」アプリを開く。\n    *   「ネットワークとインターネット」を選択。\n    *   「状態」タブの下にある「ネットワークのリセット」をクリック。\n\n*   **ルーターをリセットする場合:**\n    *   ルーター本体にあるリセットボタン（小さな穴になっていることが多い）を、電源が入った状態で長押しします（通常5秒～10秒程度）。\n    *   リセットボタンの場所や長押し時間は、お使いのルーターの機種によって異なります。取扱説明書をご確認ください。\n\n**4. スマートフォン（Android/iPhone）をリセットしたい場合**\n\n*   **Androidの場合:**\n    *   「設定」アプリを開く。\n    *   「システム」または「一般管理」を選択。\n    *   「リセット」または「初期化」を選択。\n    *   「工場出荷状態に初期化」などを選択します。\n\n*   **iPhoneの場合:**\n    *   「設定」アプリを開く。\n    *   「一般」を選択。\n    *   一番下にある「転送またはiPhoneをリセット」を選択。\n    *   「すべてのコンテンツと設定を消去」を選択します。\n\n**最も重要なこと:**\n\n**「何をリセットしたいのか」を具体的に教えていただけますでしょうか？**\n\n例えば、\n\n*   「Windows 10のパソコンを初期化したい」\n*   「Chromeブラウザの設定を工場出荷時の状態に戻したい」\n*   「スマホ（iPhone）のデータを全部消して初期化したい」\n\nのように、詳しく教えていただけると、より的確なコマンドや手順をご案内できます。",
+        "error": null
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 13.595,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.', 'status': 'RESOURCE_EXHAUSTED'}}"
+        ],
+        "response": "",
+        "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.', 'status': 'RESOURCE_EXHAUSTED'}}"
+      }
+    },
+    "gemini-3.5-flash-lite [aistudio]": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 0.172,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 0.038,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'consumer': 'projects/631814333435', 'service': 'aiplatform.googleapis.com', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'consumer': 'projects/631814333435', 'service': 'aiplatform.googleapis.com', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 0.046,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 0.044,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 0.034,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 0.024,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'consumer': 'projects/631814333435', 'service': 'aiplatform.googleapis.com', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'consumer': 'projects/631814333435', 'service': 'aiplatform.googleapis.com', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 0.025,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 0.024,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 0.015,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'consumer': 'projects/631814333435', 'service': 'aiplatform.googleapis.com', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'consumer': 'projects/631814333435', 'service': 'aiplatform.googleapis.com', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 0.017,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 0.017,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 0.018,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 0.021,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      }
+    },
+    "gemini-3-flash-preview [aistudio]": {
+      "struct_01": {
+        "id": "struct_01",
+        "category": "structured_output",
+        "title": "ECサイト注文情報のJSON抽出",
+        "eval_type": "json_schema",
+        "latency_sec": 0.051,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "struct_02": {
+        "id": "struct_02",
+        "category": "structured_output",
+        "title": "エラーログの分類と重大度JSON",
+        "eval_type": "json_schema",
+        "latency_sec": 0.018,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'serviceTitle': 'Agent Platform API', 'service': 'aiplatform.googleapis.com', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "struct_03": {
+        "id": "struct_03",
+        "category": "structured_output",
+        "title": "配列とネストを含むAPIレスポンス生成",
+        "eval_type": "json_array_schema",
+        "latency_sec": 0.038,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+      },
+      "neg_01": {
+        "id": "neg_01",
+        "category": "negative_constraint",
+        "title": "特定文字・キーワードの完全排除要約",
+        "eval_type": "negative_rules",
+        "latency_sec": 0.013,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'containerInfo': '631814333435', 'consumer': 'projects/631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "neg_02": {
+        "id": "neg_02",
+        "category": "negative_constraint",
+        "title": "医療相談における断定・診断の完全禁止とトリアージ",
+        "eval_type": "medical_refusal_rules",
+        "latency_sec": 0.028,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'consumer': 'projects/631814333435', 'service': 'aiplatform.googleapis.com', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'consumer': 'projects/631814333435', 'service': 'aiplatform.googleapis.com', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+      },
+      "neg_03": {
+        "id": "neg_03",
+        "category": "negative_constraint",
+        "title": "句読点・記号の排除とカタカナ語のみの回答",
+        "eval_type": "katakana_only",
+        "latency_sec": 0.028,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+      },
+      "reasoning_01": {
+        "id": "reasoning_01",
+        "category": "multi_step_reasoning",
+        "title": "在庫回転と発注タイミングの論理計算",
+        "eval_type": "exact_target_match",
+        "latency_sec": 0.025,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "reasoning_02": {
+        "id": "reasoning_02",
+        "category": "multi_step_reasoning",
+        "title": "複数の制約を満たすスケジュール配置問題",
+        "eval_type": "schedule_logic",
+        "latency_sec": 0.024,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+      },
+      "reasoning_03": {
+        "id": "reasoning_03",
+        "category": "multi_step_reasoning",
+        "title": "複雑な税率と割引が絡む複数商品の請求計算",
+        "eval_type": "tax_calculation",
+        "latency_sec": 0.022,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'consumer': 'projects/631814333435', 'serviceTitle': 'Agent Platform API', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'consumer': 'projects/631814333435', 'serviceTitle': 'Agent Platform API', 'containerInfo': '631814333435', 'service': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "long_01": {
+        "id": "long_01",
+        "category": "long_context_retrieval",
+        "title": "架空の社内セキュリティ規程からの特定条項抽出",
+        "eval_type": "long_needle_rules",
+        "latency_sec": 0.016,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "long_02": {
+        "id": "long_02",
+        "category": "long_context_retrieval",
+        "title": "複数システムの障害報告書からの根本原因と影響サービスの特定",
+        "eval_type": "incident_needle_rules",
+        "latency_sec": 0.02,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_SERVICE_BLOCKED', 'domain': 'googleapis.com', 'metadata': {'methodName': 'google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent', 'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'apiName': 'aiplatform.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Requests to this API aiplatform.googleapis.com method google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent are blocked.'}]}}"
+      },
+      "ambig_01": {
+        "id": "ambig_01",
+        "category": "ambiguous_intent",
+        "title": "主語や前提が欠けた指示に対する適切な確認と選択肢提示",
+        "eval_type": "clarification_check",
+        "latency_sec": 0.02,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'service': 'aiplatform.googleapis.com', 'serviceTitle': 'Agent Platform API', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      },
+      "ambig_02": {
+        "id": "ambig_02",
+        "category": "ambiguous_intent",
+        "title": "誤った前提を含む質問に対する訂正と正しい事実の提示",
+        "eval_type": "premise_correction_check",
+        "latency_sec": 0.026,
+        "score": 0.0,
+        "reasons": [
+          "API Error: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+        ],
+        "response": "",
+        "error": "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.', 'status': 'PERMISSION_DENIED', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED', 'domain': 'googleapis.com', 'metadata': {'activationUrl': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435', 'service': 'aiplatform.googleapis.com', 'consumer': 'projects/631814333435', 'containerInfo': '631814333435', 'serviceTitle': 'Agent Platform API'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'Agent Platform API has not been used in project 631814333435 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Google developers console API activation', 'url': 'https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=631814333435'}]}]}}"
+      }
+    }
+  },
+  "matrix": {
+    "ambiguous_intent": {
+      "gemini-2.5-pro [vertexai]": 100.0,
+      "gemini-2.5-flash [vertexai]": 100.0,
+      "gemini-2.5-flash-lite [vertexai]": 50.0,
+      "gemini-3.5-flash-lite [aistudio]": 0.0,
+      "gemini-3-flash-preview [aistudio]": 0.0
+    },
+    "long_context_retrieval": {
+      "gemini-2.5-pro [vertexai]": 100.0,
+      "gemini-2.5-flash [vertexai]": 100.0,
+      "gemini-2.5-flash-lite [vertexai]": 100.0,
+      "gemini-3.5-flash-lite [aistudio]": 0.0,
+      "gemini-3-flash-preview [aistudio]": 0.0
+    },
+    "multi_step_reasoning": {
+      "gemini-2.5-pro [vertexai]": 33.3,
+      "gemini-2.5-flash [vertexai]": 50.0,
+      "gemini-2.5-flash-lite [vertexai]": 66.7,
+      "gemini-3.5-flash-lite [aistudio]": 0.0,
+      "gemini-3-flash-preview [aistudio]": 0.0
+    },
+    "negative_constraint": {
+      "gemini-2.5-pro [vertexai]": 100.0,
+      "gemini-2.5-flash [vertexai]": 100.0,
+      "gemini-2.5-flash-lite [vertexai]": 88.9,
+      "gemini-3.5-flash-lite [aistudio]": 0.0,
+      "gemini-3-flash-preview [aistudio]": 0.0
+    },
+    "structured_output": {
+      "gemini-2.5-pro [vertexai]": 84.7,
+      "gemini-2.5-flash [vertexai]": 94.4,
+      "gemini-2.5-flash-lite [vertexai]": 94.4,
+      "gemini-3.5-flash-lite [aistudio]": 0.0,
+      "gemini-3-flash-preview [aistudio]": 0.0
+    }
+  },
+  "stats": {
+    "gemini-2.5-pro [vertexai]": {
+      "avg_score": 81.1,
+      "avg_latency": 13.93,
+      "total_time": 181.13,
+      "success_cases": 13
+    },
+    "gemini-2.5-flash [vertexai]": {
+      "avg_score": 87.2,
+      "avg_latency": 6.19,
+      "total_time": 80.43,
+      "success_cases": 13
+    },
+    "gemini-2.5-flash-lite [vertexai]": {
+      "avg_score": 80.8,
+      "avg_latency": 3.35,
+      "total_time": 43.58,
+      "success_cases": 11
+    },
+    "gemini-3.5-flash-lite [aistudio]": {
+      "avg_score": 0.0,
+      "avg_latency": 0.04,
+      "total_time": 0.5,
+      "success_cases": 0
+    },
+    "gemini-3-flash-preview [aistudio]": {
+      "avg_score": 0.0,
+      "avg_latency": 0.03,
+      "total_time": 0.33,
+      "success_cases": 0
+    }
+  }
+}

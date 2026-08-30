@@ -86,11 +86,10 @@ class ChatAgentManager:
         """
         Processes a user message and returns the complete text response.
         """
-        api_key = config.GOOGLE_API_KEY
-        if not api_key:
+        if not config.USE_VERTEXAI and not config.GOOGLE_API_KEY:
             return (
-                "⚠️ API key is missing. Please set `GOOGLE_API_KEY` in the `.env` file "
-                "or environment variables to enable Gemini model interactions."
+                "⚠️ Authentication missing. Please set `GOOGLE_API_KEY` for AI Studio, "
+                "or set `GOOGLE_GENAI_USE_VERTEXAI=true` and run `gcloud auth application-default login`."
             )
 
         # 1. Try ADK Runner first if available
@@ -130,7 +129,15 @@ class ChatAgentManager:
         # 2. Fallback to google-genai SDK direct client call
         if GENAI_AVAILABLE:
             try:
-                client = genai.Client(api_key=api_key)
+                if config.USE_VERTEXAI:
+                    client = genai.Client(
+                        vertexai=True,
+                        project=config.GCP_PROJECT,
+                        location=config.GCP_LOCATION
+                    )
+                else:
+                    client = genai.Client(api_key=config.GOOGLE_API_KEY)
+
                 response = client.models.generate_content(
                     model=self.model_name,
                     contents=prompt
