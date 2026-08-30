@@ -11,6 +11,7 @@
 > 4. 追補仕様書一覧:
 >    - [追補仕様 v1 (docs/SPECIFICATION_ADDENDUM_v1.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md): 測定信頼性確保・データセット拡充・トラフィックリプレイ設計
 >    - [追補仕様 v2 (docs/SPECIFICATION_ADDENDUM_v2.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v2.md): 仕様書整合性修正と構成整理規約
+>    - [追補仕様 v3 (docs/SPECIFICATION_ADDENDUM_v3.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v3.md): 実装確認事項 (ADK Runner非同期実行 & 差分指標設計意図)
 
 ---
 
@@ -182,8 +183,8 @@ backend/
 - **`ChatAgentManager` クラス**:
   - `LlmAgent` をインスタンス化し、システムインストラクションを付与。
   - `InMemorySessionService` によりセッション ID ごとに会話コンテキストを永続化・分離。
-  - `Runner.run` でエージェントを実行し、イベントストリームから最終テキスト応答を抽出。
-  - ADK パッケージが利用できない環境またはエラー時は、`google-genai` クライアント経由で直接 `models.generate_content` を呼び出す安全な二重フォールバック構造を実装（評価実行時は `allow_fallback=False` で無効化）。
+  - `Runner.run_async` でエージェントを完全非同期実行し、イベントストリーム (`AsyncGenerator[Event, None]`) から最終テキスト応答をノンブロッキングに抽出。
+  - ADK パッケージが利用できない環境またはエラー時は、`google-genai` クライアント経由で `models.generate_content` を `asyncio.to_thread` 経由でスレッド委譲して呼び出す安全な二重フォールバック構造を実装（評価実行時は `allow_fallback=False` で無効化）。FastAPI のイベントループを占有せず、複数ユーザーの並行リクエストを高速処理可能。
 
 ---
 
@@ -293,6 +294,13 @@ LLM-as-a-judge（主観的評価）を一切介さず、100% 決定論的なメ�
 - **JSON 妥当性率**: 出力から Markdown を除いたテキストが JSON 構文として有効である割合
 - **CodeBlock 混入率**: Markdown バッククォート (```) の混入割合
 - **出力長・レイテンシ統計**: 平均文字長、平均所要時間 (ms)
+
+> 💡 **指標設計の意図 (JSON 妥当性率と CodeBlock 混入率の分離)**:
+> **JSON 妥当性率と CodeBlock 混入率は、意図的に独立した観点として定義されています。**
+> - **JSON 妥当性率**: 出力の「中身の構造的な正しさ」を測定（Markdown を除去した状態で `json.loads` できるか）。
+> - **CodeBlock 混入率**: 出力形式に関する「指示の遵守（Markdown なしで純粋な JSON のみを返す制約）」を測定。
+> 
+> コードブロックで囲まれた有効な JSON は、JSON 妥当性率では合格、CodeBlock 混入率では不合格として計上されます。この分離により、「構造は正しく生成できているが出力形式の指示に追従できていない」という失敗パターンを正確に識別・分析できます（`eval/evaluator.py` のアサーション設計とも完全に整合）。
 
 ---
 

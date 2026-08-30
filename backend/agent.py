@@ -132,25 +132,34 @@ class ChatAgentManager:
                 "or set `GOOGLE_GENAI_USE_VERTEXAI=true` and run `gcloud auth application-default login`."
             )
 
-        # 1. Google ADK Runner 経由でのエージェント実行を優先試行
+        # 1. Google ADK Runner 経由でのエージェント非同期実行を優先試行 (run_async)
         if ADK_AVAILABLE and self.runner:
             try:
                 await self.get_or_create_session(session_id=session_id, user_id=user_id)
                 response_text = ""
                 
-                # Runner を実行してイベントストリームを取得
-                run_res = self.runner.run(
-                    user_id=user_id,
-                    session_id=session_id,
-                    new_message=prompt
-                )
-                events = await run_res if asyncio.iscoroutine(run_res) else run_res
+                # ADK Runner の非同期ジェネレータメソッド run_async を呼び出し
+                if hasattr(self.runner, "run_async"):
+                    events = self.runner.run_async(
+                        user_id=user_id,
+                        session_id=session_id,
+                        new_message=prompt
+                    )
+                else:
+                    # 後方互換性フォールバック
+                    events = self.runner.run(
+                        user_id=user_id,
+                        session_id=session_id,
+                        new_message=prompt
+                    )
+
+                events = await events if asyncio.iscoroutine(events) else events
 
                 if isinstance(events, str):
                     self.last_execution_path = "adk"
                     return events
 
-                # 非同期イテレータまたは通常のイテレータからテキストを抽出
+                # 非同期イテレータ (AsyncGenerator) からテキストを抽出
                 if hasattr(events, "__aiter__"):
                     async for event in events:
                         if hasattr(event, "content") and event.content:
@@ -177,7 +186,7 @@ class ChatAgentManager:
         if ADK_AVAILABLE and not self.allow_fallback:
             raise RuntimeError("ADK runner could not process request and fallback is disabled.")
 
-        # 2. google-genai SDK 直接呼び出しへのフォールバック (チャット本番用)
+        # 2. google-genai SDK 直接呼び出しへのフォールバック (チャット本番用: asyncio.to_thread でノンブロッキング化)
         if GENAI_AVAILABLE:
             try:
                 if config.USE_VERTEXAI:
@@ -189,7 +198,9 @@ class ChatAgentManager:
                 else:
                     client = genai.Client(api_key=config.GOOGLE_API_KEY)
 
-                response = client.models.generate_content(
+                # 同期 API 呼び出しをスレッドプールへ委譲し、FastAPI イベントループのブロックを防止
+                response = await asyncio.to_thread(
+                    client.models.generate_content,
                     model=self.model_name,
                     contents=prompt
                 )

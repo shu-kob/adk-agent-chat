@@ -16,6 +16,7 @@ def test_fallback_disabled_raises_on_adk_error():
         manager = ChatAgentManager(model_name="gemini-3.5-flash-lite", allow_fallback=False)
         # Mock runner to raise an exception
         manager.runner = MagicMock()
+        manager.runner.run_async = MagicMock(side_effect=RuntimeError("ADK Runner Internal Error"))
         manager.runner.run = MagicMock(side_effect=RuntimeError("ADK Runner Internal Error"))
         manager.session_service = MagicMock()
         manager.session_service.get_session = MagicMock(return_value=None)
@@ -32,6 +33,7 @@ def test_fallback_enabled_catches_adk_and_falls_back():
         manager = ChatAgentManager(model_name="gemini-3.5-flash-lite", allow_fallback=True)
         # Mock runner to raise an exception
         manager.runner = MagicMock()
+        manager.runner.run_async = MagicMock(side_effect=RuntimeError("ADK Runner Error"))
         manager.runner.run = MagicMock(side_effect=RuntimeError("ADK Runner Error"))
         manager.session_service = MagicMock()
         manager.session_service.get_session = MagicMock(return_value=None)
