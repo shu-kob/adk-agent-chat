@@ -74,6 +74,6 @@ def test_markdown_report_includes_assertion_breakdown():
         assertion_failures=assertion_failures
     )
 
-    assert "## 3. アサーション別 失敗内訳 (制約違反の分析)" in report
+    assert "アサーション別 失敗内訳" in report
     assert "`no_markdown_fence`" in report
     assert "2 回失敗" in report or "2" in report

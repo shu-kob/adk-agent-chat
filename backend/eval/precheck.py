@@ -13,13 +13,19 @@ from google.genai import types
 
 logger = logging.getLogger("eval_precheck")
 
-def validate_model_availability(client: Any, models: List[str]) -> Tuple[List[str], List[Dict[str, str]]]:
+def validate_model_availability(
+    client: Any,
+    models: List[str],
+    ping_trials: int = 3
+) -> Tuple[List[str], List[Dict[str, str]]]:
     """
-    指定されたモデルリストに対して最小トークンの事前疎通リクエスト (Pre-flight check) を送信し、
+    指定されたモデルリストに対して複数回 (既定3回) の事前疎通リクエスト (Pre-flight check) を送信し、
     利用可能なモデルとスキップ対象のモデルに分類して返却する。
+    連続呼び出しでレート制限 (429) が発生しないかも併せて確認する。
     
     :param client: 初期化済みの google.genai.Client インスタンス
     :param models: 検証対象のモデル識別子リスト
+    :param ping_trials: 連続疎通試行回数 (既定 3 回)
     :return: (利用可能なモデルIDリスト, スキップされたモデルとエラー情報のリスト)
     """
     valid_models: List[str] = []
@@ -32,21 +38,36 @@ def validate_model_availability(client: Any, models: List[str]) -> Tuple[List[st
     )
 
     for model_id in models:
-        try:
-            # 最小の ping メッセージを送信して疎通確認
-            resp = client.models.generate_content(
-                model=model_id,
-                contents="ping",
-                config=config
-            )
-            if resp:
-                valid_models.append(model_id)
-        except Exception as e:
-            error_str = str(e)
-            logger.warning(f"モデル '{model_id}' の事前疎通チェックに失敗しました: {error_str}。評価対象からスキップします。")
+        model_ok = True
+        last_error = ""
+
+        for trial in range(ping_trials):
+            try:
+                # 最小の ping メッセージを送信して疎通確認
+                resp = client.models.generate_content(
+                    model=model_id,
+                    contents="ping",
+                    config=config
+                )
+            except Exception as e:
+                error_str = str(e)
+                last_error = error_str
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                    logger.warning(
+                        f"⚠️ モデル '{model_id}' の事前チェック試行 #{trial+1} でレート制限 (429) を検出しました。"
+                        f"`EVAL_REQUEST_INTERVAL_SEC` の増加を推奨します。"
+                    )
+                else:
+                    logger.warning(f"モデル '{model_id}' の事前疎通チェックに失敗しました: {error_str}。")
+                    model_ok = False
+                    break
+
+        if model_ok:
+            valid_models.append(model_id)
+        else:
             skipped_models.append({
                 "model_id": model_id,
-                "error": error_str
+                "error": last_error
             })
 
     return valid_models, skipped_models

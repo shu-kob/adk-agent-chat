@@ -46,12 +46,12 @@ def test_detect_unstable_cases():
     assert unstable[0]["case_id"] == "c1"
 
 def test_format_percentage_with_sample_size():
-    # 2 out of 3 cases passed with 100% -> 66.7% (2/3)
+    # 2 out of 3 cases passed with 100% -> 66.7% (満点 2/3, 測定 3/3)
     text = format_percentage_with_sample_size(score_pct=66.7, count=2, total=3)
-    assert text == "66.7% (2/3) ⚠️"  # total < 5 gets warning note
+    assert text == "66.7% (満点 2/3, 測定 3/3) ⚠️"  # total < 5 gets warning note
     
     text_large = format_percentage_with_sample_size(score_pct=80.0, count=8, total=10)
-    assert text_large == "80.0% (8/10)"
+    assert text_large == "80.0% (満点 8/10, 測定 10/10)"
 
 def test_generate_markdown_report_includes_execution_conditions_and_no_assertions():
     batch_meta = {
@@ -74,7 +74,7 @@ def test_generate_markdown_report_includes_execution_conditions_and_no_assertion
     assert "## 1. 実行条件サマリ" in report
     assert "vertex_ai" in report
     assert "temperature: 0.0" in report
-    assert "100.0% (3/3) ⚠️" in report
+    assert "100.0% (満点 3/3, 測定 3/3) ⚠️" in report
     # No subjective recommendations
     assert "最適" not in report
     assert "推奨" not in report

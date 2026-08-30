@@ -67,14 +67,16 @@ def create_trial_record(
     candidate_tokens: int = 0,
     cost_usd: float = 0.0,
     reasons: Optional[List[str]] = None,
-    assertions: Optional[List[Dict[str, Any]]] = None
+    assertions: Optional[List[Dict[str, Any]]] = None,
+    retry_count: int = 0
 ) -> Dict[str, Any]:
     """
-    SPECIFICATION_ADDENDUM_v1 Phase 1.4 & 2.2 スキーマに準拠した、単一試行レコード (1行) を構築する。
+    SPECIFICATION_ADDENDUM_v1 Phase 1.4 & 2.2 & v4 スキーマに準拠した、単一試行レコード (1行) を構築する。
     
     【特徴】
     - status="error" の場合、score は 0 ではなく None (null) として記録され、成功ケースと明確に分離される。
     - N候補モデルへの拡張が容易な行指向のフラット構造。
+    - v4: retry_count の記録に対応。
     
     :param run_id: 実行バッチの一意識別子
     :param trial_index: 同一ケース・モデル内での試行番号 (0-origin)
@@ -126,6 +128,7 @@ def create_trial_record(
         "prompt_tokens": prompt_tokens,
         "candidate_tokens": candidate_tokens,
         "cost_usd": cost_usd,
+        "retry_count": retry_count,
         "reasons": reasons or [],
         "assertions": assertions or []
     }

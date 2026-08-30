@@ -38,6 +38,8 @@ from eval.aggregator import (
     detect_unstable_cases,
     compute_category_matrix,
     compute_assertion_failure_breakdown,
+    compute_coverage_metrics,
+    compute_common_case_matrix,
     generate_markdown_report
 )
 
@@ -116,6 +118,93 @@ def generate_with_params(
             return future.result(timeout=timeout_sec)
         except concurrent.futures.TimeoutError:
             raise TimeoutError(f"Generation timed out after {timeout_sec}s for model {model}")
+
+# リトライ対象エラー（429 レート制限、503 一時不可、タイムアウト、接続切断）
+RETRYABLE_ERROR_TYPES = (
+    "ResourceExhausted",
+    "RESOURCE_EXHAUSTED",
+    "ServiceUnavailable",
+    "UNAVAILABLE",
+    "TimeoutError",
+    "DeadlineExceeded",
+    "DEADLINE_EXCEEDED",
+    "ConnectionError",
+    "APIConnectionError"
+)
+
+# リトライ対象外エラー（400番台の確定エラー等）
+NON_RETRYABLE_ERROR_TYPES = (
+    "InvalidArgument",
+    "INVALID_ARGUMENT",
+    "PermissionDenied",
+    "PERMISSION_DENIED",
+    "Unauthenticated",
+    "UNAUTHENTICATED",
+    "NotFound",
+    "NOT_FOUND",
+    "ValueError"
+)
+
+def is_retryable_error(exc: Exception) -> bool:
+    """
+    発生した例外が一時的なレート制限やネットワーク障害等、リトライ対象であるかを判定する。
+    
+    :param exc: 検査対象の例外
+    :return: リトライすべき場合 True、即時失敗とすべき場合 False
+    """
+    exc_type_name = type(exc).__name__
+    exc_str = str(exc)
+
+    # 明示的な非リトライ対象の判定
+    for non_ret in NON_RETRYABLE_ERROR_TYPES:
+        if non_ret in exc_type_name or non_ret in exc_str:
+            return False
+
+    # リトライ対象の判定
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return True
+
+    for ret in RETRYABLE_ERROR_TYPES:
+        if ret in exc_type_name or ret in exc_str or "429" in exc_str or "503" in exc_str:
+            return True
+
+    return False
+
+def execute_call_with_retry(
+    call_fn: Any,
+    max_retries: Optional[int] = None,
+    base_delay_sec: Optional[float] = None,
+    backoff_factor: float = 2.0
+) -> Tuple[Any, int]:
+    """
+    指数バックオフとジッタを用いて、指定された API 呼び出し関数を実行する。
+    
+    :param call_fn: 実行する引数なし callable
+    :param max_retries: 最大リトライ回数 (環境変数 EVAL_RETRY_MAX または既定 5)
+    :param base_delay_sec: 初回待機秒数 (環境変数 EVAL_RETRY_BASE_SEC または既定 2.0)
+    :param backoff_factor: バックオフ乗数 (既定 2.0)
+    :return: (関数実行結果, 実施したリトライ回数)
+    :raises: リトライ上限超過時または非リトライ対象例外発生時
+    """
+    import random
+    if max_retries is None:
+        max_retries = int(os.getenv("EVAL_RETRY_MAX", "5"))
+    if base_delay_sec is None:
+        base_delay_sec = float(os.getenv("EVAL_RETRY_BASE_SEC", "2.0"))
+
+    retry_count = 0
+    while True:
+        try:
+            res = call_fn()
+            return res, retry_count
+        except Exception as e:
+            if not is_retryable_error(e) or retry_count >= max_retries:
+                raise e
+            
+            retry_count += 1
+            jitter = random.uniform(0.1, 0.5)
+            delay = (base_delay_sec * (backoff_factor ** (retry_count - 1))) + jitter
+            time.sleep(delay)
 
 def calculate_cost(model_name: str, prompt_tokens: int, candidate_tokens: int) -> float:
     """
@@ -215,19 +304,28 @@ def main():
                     "max_output_tokens": max_tokens
                 }
 
+                retry_cnt = 0
                 try:
-                    response_text, prompt_tokens, candidate_tokens = generate_with_params(
-                        client=client,
-                        model=model_id,
-                        prompt=prompt,
-                        temperature=temperature,
-                        seed=seed,
-                        max_output_tokens=max_tokens,
-                        timeout_sec=25.0
-                    )
+                    def _do_generate():
+                        return generate_with_params(
+                            client=client,
+                            model=model_id,
+                            prompt=prompt,
+                            temperature=temperature,
+                            seed=seed,
+                            max_output_tokens=max_tokens,
+                            timeout_sec=25.0
+                        )
+
+                    (response_text, prompt_tokens, candidate_tokens), retry_cnt = execute_call_with_retry(_do_generate)
                 except Exception as e:
                     error_msg = str(e)
                     error_type = type(e).__name__
+
+                # スロットリング (呼び出し間隔制御)
+                request_interval = float(os.getenv("EVAL_REQUEST_INTERVAL_SEC", "1.0"))
+                if request_interval > 0:
+                    time.sleep(request_interval)
 
                 latency_ms = int((time.time() - start_t) * 1000)
                 cost_usd = calculate_cost(model_id, prompt_tokens, candidate_tokens)
@@ -282,12 +380,30 @@ def main():
     MergeGuard.validate_mergeable(all_trial_records)
     print("  ✅ All records share strictly identical environment and versions.")
 
-    # 6. 集計計算 (中央値、カテゴリマトリクス、不安定ケース、アサーション失敗内訳)
+    # 6. 集計計算 (中央値、カバレッジ、共通マトリクス、失敗分布、不安定ケース、アサーション失敗内訳)
     categories = sorted(list(set(c["category"] for c in BENCHMARK_CASES)))
     case_summary = aggregate_trials_by_case(all_trial_records)
     unstable_cases = detect_unstable_cases(case_summary)
     category_matrix = compute_category_matrix(case_summary, categories, valid_models)
     assertion_failures = compute_assertion_failure_breakdown(all_trial_records)
+
+    # v4: カバレッジおよび共通ケースマトリクスの集計
+    all_cases_dict = [{"case_id": c["id"], "category": c["category"]} for c in BENCHMARK_CASES]
+    coverage_metrics = compute_coverage_metrics(case_summary, all_cases_dict, valid_models)
+    common_case_matrix, common_cases_count, excluded_cases_count = compute_common_case_matrix(
+        case_summary, all_cases_dict, valid_models
+    )
+
+    # 未測定ケース一覧の収集
+    unmeasured_cases = []
+    for (cid, mid), info in case_summary.items():
+        if info.get("median_score") is None:
+            unmeasured_cases.append({
+                "case_id": cid,
+                "category": info.get("category"),
+                "model_id": mid,
+                "error_type": info.get("error_type", "UnknownError")
+            })
 
     batch_end_dt = datetime.now()
     batch_end_iso = batch_end_dt.isoformat()
@@ -313,10 +429,15 @@ def main():
 
     # 7. レポート生成 & 保存
     report_text = generate_markdown_report(
-        batch_meta,
-        category_matrix,
-        unstable_cases,
-        assertion_failures=assertion_failures
+        batch_meta=batch_meta,
+        category_matrix=category_matrix,
+        unstable_cases=unstable_cases,
+        assertion_failures=assertion_failures,
+        coverage_metrics=coverage_metrics,
+        common_case_matrix=common_case_matrix,
+        common_cases_count=common_cases_count,
+        excluded_cases_count=excluded_cases_count,
+        unmeasured_cases=unmeasured_cases
     )
 
     results_dir = os.path.join(os.path.dirname(__file__), "results")
@@ -333,11 +454,14 @@ def main():
     raw_output_path = os.path.join(results_dir, f"eval_raw_phase1_{timestamp_str}.json")
     raw_payload = {
         "batch_meta": batch_meta,
-        "records": all_trial_records,
-        "case_summary": {f"{k[0]}__{k[1]}": v for k, v in case_summary.items()},
+        "coverage_metrics": coverage_metrics,
+        "common_case_matrix": common_case_matrix,
+        "case_summary": {f"{k[0]}::{k[1]}": v for k, v in case_summary.items()},
         "category_matrix": category_matrix,
         "assertion_failures": assertion_failures,
-        "unstable_cases": unstable_cases
+        "unstable_cases": unstable_cases,
+        "unmeasured_cases": unmeasured_cases,
+        "records": all_trial_records
     }
     with open(raw_output_path, "w", encoding="utf-8") as f:
         json.dump(raw_payload, f, ensure_ascii=False, indent=2)
