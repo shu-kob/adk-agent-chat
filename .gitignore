@@ -27,3 +27,6 @@ dist-ssr/
 .DS_Store
 .vscode/
 .idea/
+
+# Traffic capture data (Phase 3)
+backend/eval/traffic/data/

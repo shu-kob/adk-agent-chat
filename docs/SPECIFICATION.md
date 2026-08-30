@@ -8,13 +8,15 @@
 >    - グローバル変数や外部モジュール参照の用途・役割を明記すること。
 >    - コード変更時は必ずコメントも整合性を保って同期更新すること。
 > 3. **仕様書の同期更新**: 本リポジトリ内のソースコード（フロントエンド・バックエンド・評価基盤）に変更・機能追加・仕様変更を加えた場合は、**必ず本仕様書 (`docs/SPECIFICATION.md`) も同期して更新すること**。
-> 4. なお、評価基盤の再設計・新機能（トラフィック蓄積/リプレイ等）については [追補仕様 (docs/SPECIFICATION_ADDENDUM_v1.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md) を参照。
+> 4. 追補仕様書一覧:
+>    - [追補仕様 v1 (docs/SPECIFICATION_ADDENDUM_v1.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md): 測定信頼性確保・データセット拡充・トラフィックリプレイ設計
+>    - [追補仕様 v2 (docs/SPECIFICATION_ADDENDUM_v2.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v2.md): 仕様書整合性修正と構成整理規約
 
 ---
 
 ## 1. システム全体概要
 
-`ADK Agent Chat` は、Google Agent Development Kit (ADK) および Google GenAI SDK を活用した、モダンなフルスタック AI チャットボットアプリケーションです。リアルタイム対話チャット機能に加え、複数世代の LLM モデルを決定論的ルールで客観評価するベンチマーク評価基盤を備えています。
+`ADK Agent Chat` は、Google Agent Development Kit (ADK) および Google GenAI SDK を活用した、モダンなフルスタック AI チャットボットアプリケーションです。リアルタイム対話チャット機能に加え、複数世代の LLM モデルを決定論的ルールで客観評価するベンチマーク評価基盤および実トラフィックのリプレイ評価基盤を備えています。
 
 ```mermaid
 graph TD
@@ -28,7 +30,7 @@ graph TD
     end
 
     subgraph LLM Providers
-        ADK <-->|Vertex AI or AI Studio| Gemini[Gemini Models<br/>gemini-3.7-flash / gemini-3.5-flash-lite / gemini-3.1-pro-preview]
+        ADK <-->|Vertex AI or AI Studio| Gemini[Gemini 系列<br/>※対象モデルは 5.1 参照]
     end
     
     subgraph Evaluation["LLM Evaluation Benchmark (Phase 1 & 2)"]
@@ -43,25 +45,33 @@ graph TD
         Runner -->|Validate| Guard
         Runner -->|Aggregate| Aggregator
     end
+
+    subgraph TrafficReplay["Traffic Capture & Replay (Phase 3)"]
+        TrafficStore[eval/traffic/store.py<br/>PII Masking Hook]
+        ReplayJob[eval/traffic/replay.py<br/>N Candidates Batch Replay]
+        DiffAnalyzer[eval/traffic/diff_analyzer.py<br/>Deterministic Diff]
+        Backend -->|Capture /api/chat| TrafficStore
+        TrafficStore -->|Extract Queries| ReplayJob
+        ReplayJob -->|Replay Outputs| DiffAnalyzer
+    end
 ```
 
 ---
 
 ## 2. システム構成 & 技術スタック
 
-### 1.2 技術スタック
+### 2.1 技術スタック
 
 | レイヤー | 技術 / ライブラリ | バージョン / 詳細 |
 | :--- | :--- | :--- |
-| **Backend Framework** | FastAPI (Python) | 3.11+ / 非同期 REST API サーバー |
-| **Agent Framework** | Google Agent Development Kit (ADK) | `google-adk` / `google-genai` (Fallback 対応) |
-| **LLM Models** | Gemini 系列 | `gemini-3.7-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-pro-preview` |
-| **Frontend Testing**| Vitest, React Testing Library | コンポーネント単体テスト |
-| **Backend** | Python, FastAPI, Uvicorn | Python 3.10+, 非同期 (async/await) |
-| **Agent Framework** | Google Agent Development Kit (`google-adk`) | `LlmAgent`, `Runner`, `InMemorySessionService` |
-| **LLM SDK** | Google GenAI SDK (`google-genai`) | AI Studio & Vertex AI 両対応 |
-| **LLM Models** | Gemini 系列 | `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3.5-flash-lite` 等 |
-| **Evaluation** | Python ルールベース評価エンジン | 決定論的アサーション (Regex, JSON Schema) |
+| **Frontend** | React, TypeScript, Vite | React 18, StrictMode |
+| **Frontend Styling** | Vanilla CSS (CSS Variables) | Modern Dark Mode, Glassmorphism, Responsive |
+| **Frontend Testing** | Vitest, React Testing Library | コンポーネント単体テスト |
+| **Backend** | Python, FastAPI, Uvicorn | Python 3.11+, 非同期 REST API (async/await) |
+| **Agent Framework** | Google Agent Development Kit (`google-adk`) | `LlmAgent`, `Runner`, `InMemorySessionService` (Fallback 対応) |
+| **LLM SDK** | Google GenAI SDK (`google-genai`) | AI Studio (API Key) & Vertex AI (ADC) 両対応 |
+| **LLM Models** | Gemini 系列 | 評価対象モデルは 5.1 を参照 |
+| **Evaluation** | Python 決定論的ルールベース評価エンジン | 決定論的アサーション (Regex, JSON Schema, 編集距離) |
 
 ---
 
@@ -77,11 +87,22 @@ backend/
 ├── .env                # 環境設定ファイル (Git 管理外)
 ├── .env.example        # 環境変数テンプレート
 ├── tests/              # バックエンド単体テスト
-└── eval/               # LLM ベンチマーク評価基盤
-    ├── dataset.py      # 評価データセット (全13ケース)
-    ├── evaluator.py    # 決定論的採点ロジック
-    ├── runner.py       # ベンチマーク実行スクリプト
-    └── results/        # 評価結果 (JSON / Markdown)
+└── eval/               # LLM 評価基盤
+    ├── dataset.py      # データセットローダー（定義本体は datasets/ 配下）
+    ├── datasets/       # 評価データセット定義（外部化）
+    │   └── benchmark_v2.json
+    ├── evaluator.py    # 決定論的採点ロジック（アサーション単位）
+    ├── precheck.py     # モデル事前疎通チェック
+    ├── runner.py       # ベンチマーク実行
+    ├── guard.py        # 集計時マージガード
+    ├── aggregator.py   # 集計・レポート生成
+    ├── results/        # 評価結果 (JSON / Markdown)
+    └── traffic/        # 実トラフィック蓄積・リプレイ (Phase 3)
+        ├── __init__.py
+        ├── store.py            # トラフィック蓄積 & PII マスキング
+        ├── replay.py           # N 候補バッチリプレイ実行ジョブ
+        ├── diff_analyzer.py    # 決定論的差分分析
+        └── data/               # 蓄積データ (Git 管理外)
 ```
 
 ### 3.2 環境変数仕様 (`backend/config.py`)
@@ -91,8 +112,8 @@ backend/
 | `GOOGLE_API_KEY` | △ | なし | Google AI Studio の API キー (AI Studio 経由時に必須) |
 | `GOOGLE_GENAI_USE_VERTEXAI` | △ | `false` | `true` の場合、Vertex AI 経由で呼び出し (ADC 認証) |
 | `GOOGLE_CLOUD_PROJECT` | △ | なし | Vertex AI 使用時の GCP プロジェクト ID |
-| `GOOGLE_CLOUD_LOCATION` | - | `us-central1` | Vertex AI のリージョン (例: `global`, `us-central1`) |
-| `GEMINI_MODEL` | - | `gemini-3.5-flash-lite` | チャットボットで使用するデフォルトモデル名 |
+| `GOOGLE_CLOUD_LOCATION` | - | `global` | Vertex AI のリージョン (例: `global`, `us-central1`) |
+| `GEMINI_MODEL` | - | `gemini-3.5-flash-lite` | チャット機能で使用する既定モデル。評価対象モデルとは独立して設定される |
 | `HOST` | - | `0.0.0.0` | API サーバー待受ホスト |
 | `PORT` | - | `8000` | API サーバー待受ポート |
 
@@ -120,7 +141,7 @@ backend/
   ```
 
 #### ③ `POST /api/chat`
-ユーザーメッセージを受け取り、ADK Agent / Gemini からの応答を返却。
+ユーザーメッセージを受け取り、ADK Agent / Gemini からの応答を返却。同時に直前の会話履歴コンテキストを含めて対話ログを自動蓄積（Phase 3）。
 - **Request Body**:
   ```json
   {
@@ -161,8 +182,8 @@ backend/
 - **`ChatAgentManager` クラス**:
   - `LlmAgent` をインスタンス化し、システムインストラクションを付与。
   - `InMemorySessionService` によりセッション ID ごとに会話コンテキストを永続化・分離。
-  - `Runner.run_async` でエージェントを実行し、イベントストリームから最終テキスト応答を抽出。
-  - ADK パッケージが利用できない環境またはエラー時は、`google-genai` クライアント経由で直接 `models.generate_content` を呼び出す安全な二重フォールバック構造を実装。
+  - `Runner.run` でエージェントを実行し、イベントストリームから最終テキスト応答を抽出。
+  - ADK パッケージが利用できない環境またはエラー時は、`google-genai` クライアント経由で直接 `models.generate_content` を呼び出す安全な二重フォールバック構造を実装（評価実行時は `allow_fallback=False` で無効化）。
 
 ---
 
@@ -191,20 +212,24 @@ frontend/src/
 
 ## 5. LLM ベンチマーク評価基盤仕様 (`backend/eval/`)
 
-### 5.1 測定の信頼性確保 & 評価設計原則 (Phase 1 & 2 準拠)
+### 5.1 測定の信頼性確保 & 評価設計原則 (Golden Dataset 系統)
 評価は主観や LLM-as-a-judge によるブレを排除し、**100% 決定論的（Deterministic / Assertion-based）**なルールで採点します。
 
-1. **データセットの外部化 (`eval/datasets/benchmark_v2.json`)**: コード内リテラルから分離し、バージョン管理 (`v2.0.0`)。
-2. **3カテゴリ各10ケース（計30ケース）への集中**: `structured_output`, `negative_constraint`, `multi_step_reasoning` の3カテゴリ各10件を有効化し、難易度（`basic`, `intermediate`, `advanced`）を設定。他カテゴリは `enabled: false` で保持。
-3. **アサーション単位の採点 (Fine-grained Assertions)**: 各検証項目（JSON構文、キー適合、禁止文字排除等）のアサーション合否を個別記録し、ケーススコアは `passed_assertions / total_assertions` として算出。
-4. **アサーション別失敗内訳レポート**: レポート上で各モデルがどの制約で何回落ちたかを可視化。
-5. **生成パラメータの固定**: `temperature=0.0`, `seed=42`, 各ケース定義ごとの `max_output_tokens`。
-6. **複数試行と代表値（中央値）**: 各 (case, model) に対して `EVAL_TRIALS`（既定 3 回）試行し、代表値として中央値 (Median) を採用。試行間のばらつき（min, max, stddev）および不安定ケースを自動検出。
-7. **フォールバック無効モード**: 評価実行時は `allow_fallback=False` とし、ADK 失敗時は例外として扱いスコア 0 に混ぜず `status="error"` として明示分離。
-8. **モデル事前疎通チェック (`eval/precheck.py`)**: 実行前に最小 ping リクエストでモデルの応答可能性を検証し、未解決モデルはスキップ。
-9. **集計時マージガード (`eval/guard.py`)**: `provider_route`, `instruction_hash`, `dataset_version`, `evaluator_version` のいずれかが異なるデータの単一表への統合を禁止（`MergeGuardViolationError` 送出）。
-10. **客観的レポート生成 (`eval/aggregator.py`)**: サンプル数併記 (`50.0% (1/2)`), 母数 < 5 の注意マーク `⚠️`、断定的主観文の排除。
-11. **評価対象ターゲットモデル (`eval/runner.py`)**: `gemini-3.7-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-pro-preview` を対象として比較評価を実施。
+1. **評価対象ターゲットモデル (`eval/runner.py`)**: 以下の 3 モデルを比較対象として確定とする。
+   - `gemini-3.7-flash`
+   - `gemini-3.5-flash-lite`
+   - `gemini-3.1-pro-preview`
+2. **データセットの外部化 (`eval/datasets/benchmark_v2.json`)**: コード内リテラルから分離し、バージョン管理 (`v2.0.0`)。
+3. **3カテゴリ各10ケース（計30ケース）への集中**: `structured_output`, `negative_constraint`, `multi_step_reasoning` の3カテゴリ各10件を有効化し、難易度（`basic`, `intermediate`, `advanced`）を設定。他カテゴリは `enabled: false` で保持。
+4. **アサーション単位の採点 (Fine-grained Assertions)**: 各検証項目（JSON構文、キー適合、禁止文字排除等）のアサーション合否を個別記録し、ケーススコアは `passed_assertions / total_assertions` として算出。
+5. **アサーション別失敗内訳レポート**: レポート上で各モデルがどの制約で何回落ちたかを可視化。
+6. **生成パラメータの固定**: `temperature=0.0`, `seed=42`, 各ケース定義ごとの `max_output_tokens`。
+   - ※ `seed` パラメータについて: 現時点では全対象モデルが `seed` をサポートしている前提で動作します。非対応モデルを追加する際は挙動の定義（指定省略またはメタデータ記録）が必要です。
+7. **複数試行と代表値（中央値）**: 各 (case, model) に対して `EVAL_TRIALS`（既定 3 回）試行し、代表値として中央値 (Median) を採用。試行間のばらつき（min, max, stddev）および不安定ケースを自動検出。
+8. **フォールバック無効モード**: 評価実行時は `allow_fallback=False` とし、ADK 失敗時は例外として扱いスコア 0 に混ぜず `status="error"` として明示分離。
+9. **モデル事前疎通チェック (`eval/precheck.py`)**: 実行前に最小 ping リクエストでモデルの応答可能性を検証し、未解決モデルはスキップ。
+10. **集計時マージガード (`eval/guard.py`)**: `provider_route`, `instruction_hash`, `dataset_version`, `evaluator_version` のいずれかが異なるデータの単一表への統合を禁止（`MergeGuardViolationError` 送出）。
+11. **客観的レポート生成 (`eval/aggregator.py`)**: サンプル数併記 (`50.0% (1/2)`), 母数 < 5 の注意マーク `⚠️`、断定的主観文の排除。
 
 | カテゴリ | ケース数 | 難易度傾斜 | 評価内容・検証ロジック |
 | :--- | :---: | :---: | :--- |
@@ -229,34 +254,49 @@ frontend/src/
   - `eval_report_<timestamp>.md` / `eval_report_latest.md`: 自動生成マークダウンレポート（実行サマリー、マトリクス、アサーション失敗内訳、各ケース詳細）
   - `eval_matrix_analysis.md`: モデル × カテゴリのクロス集計マトリクス & 考察レポート
 
-### 5.3 実トラフィックの蓄積とリプレイ評価仕様 (Phase 3 準拠)
-本番対話トラフィックを自動蓄積し、蓄積クエリに対して新候補（モデル・プロンプト・パラメータ）のバッチ再実行と決定論的差分分析を行う基盤です。
+---
 
-#### 1. トラフィック蓄積 (`eval/traffic/store.py`)
-- **蓄積場所**: `backend/eval/traffic/data/traffic_log.jsonl`
+## 6. 実トラフィック蓄積とリプレイ評価基盤 (`backend/eval/traffic/`)
+
+### 6.1 系統対比と位置づけ
+実トラフィック蓄積・リプレイ評価は、固定データセットによるベンチマーク（第5章）とは**目的・入力・実行頻度の異なる独立系統**です。
+
+| 系統 | 目的 | 入力 | 実行頻度 |
+| :--- | :--- | :--- | :--- |
+| **Golden dataset (第5章)** | 現行構成の劣化検知・回帰テスト | 固定データセット (30+ cases) | デプロイ時・定期 CI |
+| **リプレイ評価 (第6章)** | 候補モデル/プロンプトへの切り替え判断 | 蓄積された本番実トラフィック | 候補検討期間のみ随時実行 |
+
+> **⚠️ 運用上の重要注意事項**:
+> 1. **常時稼働ではない**: リプレイ実行ジョブは常時稼働させるものではなく、新モデルやプロンプト変更の検討期間中のみ実行します。
+> 2. **事前の蓄積開始が必須**: リプレイ評価は蓄積された過去の対話データを前提とするため、**評価の必要が生じる前から蓄積を稼働させておく必要があります**（過去のクエリを遡って生成・取得することはできません）。
+
+### 6.2 トラフィック蓄積仕様 (`eval/traffic/store.py`)
+- **蓄積ファイル場所**: `backend/eval/traffic/data/traffic_log.jsonl` (**Git 管理外**)
 - **蓄積スキーマ (11項目)**:
   - `query_id` (一意ID), `timestamp` (ISO日時), `session_id` (セッション識別子), `input_text` (ユーザー入力)
   - `conversation_context` (直前までの会話履歴 `[{"role": "user"|"assistant", "text": "..."}]`)
   - `output_text` (返却応答), `model_id` (使用モデル), `provider_route` (`vertex_ai` / `ai_studio`)
   - `instruction_hash` (指示ハッシュ), `generation_config` (生成パラメータ), `latency_ms` (レイテンシ)
-- **個人情報保護 (PII Masking)**: `default_pii_masking_hook` により、メールアドレス (`[EMAIL]`) および電話番号 (`[PHONE]`) を保存前に自動マスキング。
+- **個人情報保護 (PII Masking)**:
+  - `default_pii_masking_hook` により、メールアドレス (`[EMAIL]`) および電話番号 (`[PHONE]`) を保存前に自動マスキング。
+  - > ⚠️ **注意**: 現行のマスキング実装はデモ・検証用途の基本フックです。氏名、住所、クレジットカード番号、銀行口座番号、社内固有の機密情報等には未対応であるため、**本番商用環境で運用する場合はマスキング対象のルール拡張や専用 DLP (Data Loss Prevention) 連携が必須**です。
 
-#### 2. リプレイ実行ジョブ (`eval/traffic/replay.py`)
-- **N 候補の一括比較**: 単一の実行ジョブで 3 候補以上の `ReplayCandidate`（モデル識別子・システムプロンプト・生成パラメータ）を指定可能。
-- **データ抽出**: 期間指定、件数上限 (`limit`)、サンプリング率 (`sample_ratio`) による抽出。
-- **スキーマ統一**: Phase 1.4 と完全互換な出力レコードに `source="replay"` および `candidate_id` を付与して永続化。消費トークン数・所要時間・コストを完全トラッキング。
+### 6.3 リプレイ実行ジョブ仕様 (`eval/traffic/replay.py`)
+- **N 候補の一括比較**: 単一の実行ジョブで 3 候補以上の `ReplayCandidate`（モデル識別子・システムプロンプト・生成パラメータの組み合わせ）を指定可能。
+- **データ抽出条件**: 期間指定 (`start_time`, `end_time`)、件数上限 (`limit`)、サンプリング率 (`sample_ratio`) による抽出。
+- **スキーマ統一**: Phase 1.4 と完全互換な出力レコードに `source="replay"` および `candidate_id` を付与して永続化。消費トークン数・所要時間・概算コストを記録。
 
-#### 3. 決定論的差分分析 (`eval/traffic/diff_analyzer.py`)
-LLM-as-a-judge を一切使わず、100% 決定論的なメトリクスで候補間の差異を算出・可視化：
-- **完全一致率**: 現行本番出力文字列との完全一致割合
-- **平均類似度**: レーベンシュタイン編集距離を正規化した出力類似度 (0.0〜1.0)
-- **JSON 妥当性率**: 出力が JSON 構文として有効である割合
+### 6.4 決定論的差分分析仕様 (`eval/traffic/diff_analyzer.py`)
+LLM-as-a-judge（主観的評価）を一切介さず、100% 決定論的なメトリクスで候補間の差異を算出・比較レポート生成：
+- **完全一致率**: 現行本番出力文字列との完全一致割合 (`exact_match_ratio`)
+- **平均類似度**: レーベンシュタイン編集距離を正規化した出力類似度の平均値 (0.0〜1.0)
+- **JSON 妥当性率**: 出力から Markdown を除いたテキストが JSON 構文として有効である割合
 - **CodeBlock 混入率**: Markdown バッククォート (```) の混入割合
 - **出力長・レイテンシ統計**: 平均文字長、平均所要時間 (ms)
 
 ---
 
-## 6. 仕様更新チェックリスト（開発者・AI 共通運用ルール）
+## 7. 仕様更新チェックリスト（開発者・AI 共通運用ルール）
 
 ソースコードに変更を加えた際は、以下の項目を確認し、本 `SPECIFICATION.md` を更新してください：
 
@@ -265,4 +305,5 @@ LLM-as-a-judge を一切使わず、100% 決定論的なメトリクスで候補
 - [ ] **モデルやプロンプト仕様の変更**: `1. システム全体概要` または `3.4 Agent 実行仕様` を更新したか
 - [ ] **UI / フロントエンド機能の追加・変更**: `4. フロントエンド仕様` を更新したか
 - [ ] **評価ケース・採点ルールの追加・変更**: `5. LLM ベンチマーク評価基盤仕様` を更新したか
+- [ ] **トラフィック蓄積・リプレイ仕様の変更**: `6. 実トラフィック蓄積とリプレイ評価基盤` を更新したか
 - [ ] **日本語コメント & Docstring**: 引数・戻り値・処理意図・外部参照のコメントをコード側で同期更新したか
