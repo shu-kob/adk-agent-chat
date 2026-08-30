@@ -1,6 +1,7 @@
 """
-Evaluation Result Aggregator & Objective Report Generator
-Implements multi-trial median calculation, instability detection, and strictly objective reporting.
+Evaluation Result Aggregator & Objective Report Generator (Phase 2 Fine-grained Assertions)
+Implements multi-trial median calculation, instability detection, assertion-level failure breakdown,
+and strictly objective reporting.
 """
 
 import statistics
@@ -108,14 +109,35 @@ def compute_category_matrix(
 
     return matrix
 
+def compute_assertion_failure_breakdown(trial_records: List[Dict[str, Any]]) -> Dict[str, Dict[str, Dict[str, int]]]:
+    """
+    Computes failure frequencies per assertion name grouped by model_id and category.
+    Returns: { model_id: { category: { assertion_name: failure_count } } }
+    """
+    breakdown: Dict[str, Dict[str, Dict[str, int]]] = {}
+
+    for record in trial_records:
+        model_id = record.get("model_id", "unknown")
+        category = record.get("category", "unknown")
+        assertions = record.get("assertions", [])
+
+        for a in assertions:
+            if not a.get("passed", True):
+                name = a.get("name", "unnamed_assertion")
+                breakdown.setdefault(model_id, {}).setdefault(category, {})
+                breakdown[model_id][category][name] = breakdown[model_id][category].get(name, 0) + 1
+
+    return breakdown
+
 def generate_markdown_report(
     batch_meta: Dict[str, Any],
     category_matrix: Dict[str, Dict[str, Dict[str, Any]]],
-    unstable_cases: List[Dict[str, Any]]
+    unstable_cases: List[Dict[str, Any]],
+    assertion_failures: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None
 ) -> str:
     """
     Generates a structured, strictly objective Markdown benchmark report
-    meeting SPECIFICATION_ADDENDUM_v1 Phase 1.7 constraints.
+    meeting SPECIFICATION_ADDENDUM_v1 Phase 1.7 & 2.2 constraints.
     """
     lines = []
     lines.append("# 📊 LLM Benchmark Evaluation Report\n")
@@ -149,9 +171,27 @@ def generate_markdown_report(
 
     lines.append("\n> ⚠️ **注記**: 母数（テストケース数）が 5 未満のセルには注意マークが付与されています。サンプル数が少なく統計的に有意な差と断定できない可能性があります。\n")
 
-    # 3. Unstable Cases
+    # 3. Assertion Failure Breakdown (Phase 2)
+    if assertion_failures:
+        lines.append("## 3. アサーション別 失敗内訳 (制約違反の分析)\n")
+        has_any_failure = False
+        for m in models:
+            m_failures = assertion_failures.get(m, {})
+            if m_failures:
+                has_any_failure = True
+                lines.append(f"### モデル: `{m}`\n")
+                lines.append("| カテゴリ | 失敗アサーション名 | 失敗回数 |")
+                lines.append("|:---|:---|:---:|")
+                for cat, a_dict in m_failures.items():
+                    for a_name, count in sorted(a_dict.items(), key=lambda x: x[1], reverse=True):
+                        lines.append(f"| `{cat}` | `{a_name}` | {count} 回失敗 |")
+                lines.append("")
+        if not has_any_failure:
+            lines.append("全試行においてアサーション失敗は検出されませんでした。\n")
+
+    # 4. Unstable Cases
     if unstable_cases:
-        lines.append("## 3. 試行間で結果が不安定なケース一覧 (要ケース精査)\n")
+        lines.append("## 4. 試行間で結果が不安定なケース一覧 (要ケース精査)\n")
         lines.append("| Case ID | Category | Model | Min Score | Max Score | 試行回数 |")
         lines.append("|:---|:---|:---|:---:|:---:|:---:|")
         for u in unstable_cases:

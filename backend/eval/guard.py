@@ -6,8 +6,8 @@ import hashlib
 import importlib.metadata
 from typing import Dict, Any, List, Optional
 
-DATASET_VERSION = "v1.0.0"
-EVALUATOR_VERSION = "v1.0.0"
+DATASET_VERSION = "v2.0.0"
+EVALUATOR_VERSION = "v2.0.0"
 
 class MergeGuardViolationError(ValueError):
     """Raised when evaluation records with mismatched environments or parameters are merged."""
@@ -48,10 +48,11 @@ def create_trial_record(
     prompt_tokens: int = 0,
     candidate_tokens: int = 0,
     cost_usd: float = 0.0,
-    reasons: Optional[List[str]] = None
+    reasons: Optional[List[str]] = None,
+    assertions: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
     """
-    Constructs a fully-typed single trial record meeting SPECIFICATION_ADDENDUM_v1 Phase 1.4 schema.
+    Constructs a fully-typed single trial record meeting SPECIFICATION_ADDENDUM_v1 Phase 1.4 & 2.2 schema.
     """
     is_error = (status == "error")
 
@@ -79,7 +80,8 @@ def create_trial_record(
         "prompt_tokens": prompt_tokens,
         "candidate_tokens": candidate_tokens,
         "cost_usd": cost_usd,
-        "reasons": reasons or []
+        "reasons": reasons or [],
+        "assertions": assertions or []
     }
     return record
 

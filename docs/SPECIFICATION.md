@@ -177,23 +177,27 @@ frontend/src/
 
 ## 5. LLM ベンチマーク評価基盤仕様 (`backend/eval/`)
 
-### 5.1 測定の信頼性確保 & 評価設計原則 (Phase 1 準拠)
+### 5.1 測定の信頼性確保 & 評価設計原則 (Phase 1 & 2 準拠)
 評価は主観や LLM-as-a-judge によるブレを排除し、**100% 決定論的（Deterministic / Assertion-based）**なルールで採点します。
 
-1. **生成パラメータの固定**: `temperature=0.0`, `seed=42`, 各ケース定義ごとの `max_output_tokens`。
-2. **複数試行と代表値（中央値）**: 各 (case, model) に対して `EVAL_TRIALS`（既定 3 回）試行し、代表値として中央値 (Median) を採用。試行間のばらつき（min, max, stddev）および不安定ケースを自動検出。
-3. **フォールバック無効モード**: 評価実行時は `allow_fallback=False` とし、ADK 失敗時は例外として扱いスコア 0 に混ぜず `status="error"` として明示分離。
-4. **モデル事前疎通チェック (`eval/precheck.py`)**: 実行前に最小 ping リクエストでモデルの応答可能性を検証し、未解決モデルはスキップ。
-5. **集計時マージガード (`eval/guard.py`)**: `provider_route`, `instruction_hash`, `dataset_version`, `evaluator_version` のいずれかが異なるデータの単一表への統合を禁止（`MergeGuardViolationError` 送出）。
-6. **客観的レポート生成 (`eval/aggregator.py`)**: サンプル数併記 (`50.0% (1/2)`), 母数 < 5 の注意マーク `⚠️`、断定的主観文の排除。
+1. **データセットの外部化 (`eval/datasets/benchmark_v2.json`)**: コード内リテラルから分離し、バージョン管理 (`v2.0.0`)。
+2. **3カテゴリ各10ケース（計30ケース）への集中**: `structured_output`, `negative_constraint`, `multi_step_reasoning` の3カテゴリ各10件を有効化し、難易度（`basic`, `intermediate`, `advanced`）を設定。他カテゴリは `enabled: false` で保持。
+3. **アサーション単位の採点 (Fine-grained Assertions)**: 各検証項目（JSON構文、キー適合、禁止文字排除等）のアサーション合否を個別記録し、ケーススコアは `passed_assertions / total_assertions` として算出。
+4. **アサーション別失敗内訳レポート**: レポート上で各モデルがどの制約で何回落ちたかを可視化。
+5. **生成パラメータの固定**: `temperature=0.0`, `seed=42`, 各ケース定義ごとの `max_output_tokens`。
+6. **複数試行と代表値（中央値）**: 各 (case, model) に対して `EVAL_TRIALS`（既定 3 回）試行し、代表値として中央値 (Median) を採用。試行間のばらつき（min, max, stddev）および不安定ケースを自動検出。
+7. **フォールバック無効モード**: 評価実行時は `allow_fallback=False` とし、ADK 失敗時は例外として扱いスコア 0 に混ぜず `status="error"` として明示分離。
+8. **モデル事前疎通チェック (`eval/precheck.py`)**: 実行前に最小 ping リクエストでモデルの応答可能性を検証し、未解決モデルはスキップ。
+9. **集計時マージガード (`eval/guard.py`)**: `provider_route`, `instruction_hash`, `dataset_version`, `evaluator_version` のいずれかが異なるデータの単一表への統合を禁止（`MergeGuardViolationError` 送出）。
+10. **客観的レポート生成 (`eval/aggregator.py`)**: サンプル数併記 (`50.0% (1/2)`), 母数 < 5 の注意マーク `⚠️`、断定的主観文の排除。
 
-| カテゴリ | ケース数 | 評価内容・検証ロジック |
-| :--- | :---: | :--- |
-| **`structured_output`** | 3 | JSON スキーマ厳格検証。Markdown コードブロック有無の検出、期待フィールド・型の完全一致。 |
-| **`negative_constraint`** | 3 | 禁止ワード（「AI」「モデル」等）の排除チェック、文字種制限（カタカナのみ等）、文字数範囲チェック。 |
-| **`multi_step_reasoning`** | 3 | 複数段階の論理矛盾解決・旅程スケジュール判定・複数税率計算の正解値アサーション。 |
-| **`long_context_retrieval`** | 2 | 数千字の文脈内に埋め込まれた Needle（特定トークン・障害原因）のピンポイント抽出一致。 |
-| **`ambiguous_intent`** | 2 | 曖昧な質問に対して勝手な決めつけを行わず、選択肢提示・確認質問を行えているかのパターン判定。 |
+| カテゴリ | ケース数 | 難易度傾斜 | 評価内容・検証ロジック |
+| :--- | :---: | :---: | :--- |
+| **`structured_output`** | 10 | basic: 3<br/>inter: 4<br/>adv: 3 | JSON スキーマ厳格検証。Markdown コードブロック有無、キー完全一致、ネスト・配列・型適合アサーション。 |
+| **`negative_constraint`** | 10 | basic: 4<br/>inter: 3<br/>adv: 3 | 禁止単語・特定文字除外（AI、カタカナ、数字、句読点、敬語、助詞「の」等の完全排除）アサーション。 |
+| **`multi_step_reasoning`** | 10 | basic: 3<br/>inter: 4<br/>adv: 3 | 複数段階の論理矛盾解決・旅程スケジュール判定・複数税率計算・シフト割当・最適化計算の正解値アサーション。 |
+| **`long_context_retrieval`** | 2 (保留) | inter: 1<br/>adv: 1 | （`enabled: false` として保持）数千字の文脈内に埋め込まれた Needle の抽出一致。 |
+| **`ambiguous_intent`** | 2 (保留) | basic: 1<br/>inter: 1 | （`enabled: false` として保持）前提確認・選択肢提示のパターン判定。 |
 
 ### 5.2 評価データの出力スキーマ & 計測メトリクス
 評価結果は、後から任意の N 候補モデルを追加してもスキーマ変更が不要な**行指向・モデル独立データ構造 (`records`)** および**実費・所要時間の完全トレース**を備えて永続化されます。
@@ -202,11 +206,12 @@ frontend/src/
 - **保存成果物**:
   - `eval_raw_<timestamp>.json`: 全試行のローデータ
     - `batch_meta`: `run_id`, `started_at`, `completed_at`, `duration_sec`, `total_cost_usd`, `provider_route`, `location`, `trials_per_case`, `temperature`, `seed`, `dataset_version`, `evaluator_version`, `models`, `skipped_models`
-    - `records`: 1 試行 1 レコードの行指向フラット配列 (`run_id`, `trial_index`, `case_id`, `category`, `model_id`, `score`, `latency_ms`, `prompt_tokens`, `candidate_tokens`, `cost_usd`, `instruction_hash`, `dataset_version`, `evaluator_version`, `status`, `error_type`, `raw_output`, `reasons`)
+    - `records`: 1 試行 1 レコードの行指向フラット配列 (`run_id`, `trial_index`, `case_id`, `category`, `model_id`, `score`, `latency_ms`, `prompt_tokens`, `candidate_tokens`, `cost_usd`, `instruction_hash`, `dataset_version`, `evaluator_version`, `status`, `error_type`, `raw_output`, `reasons`, `assertions`)
     - `case_summary`: (case, model) 別の中央値、最小/最大スコア、不安定判定
     - `category_matrix`: カテゴリ別スコアマトリクス（サンプル数付き）
+    - `assertion_failures`: モデル・カテゴリ別のアサーション失敗内訳
     - `unstable_cases`: 試行間で結果が割れた要精査ケース一覧
-  - `eval_report_<timestamp>.md` / `eval_report_latest.md`: 自動生成マークダウンレポート（実行サマリー、マトリクス、各ケース詳細）
+  - `eval_report_<timestamp>.md` / `eval_report_latest.md`: 自動生成マークダウンレポート（実行サマリー、マトリクス、アサーション失敗内訳、各ケース詳細）
   - `eval_matrix_analysis.md`: モデル × カテゴリのクロス集計マトリクス & 考察レポート
 
 ---

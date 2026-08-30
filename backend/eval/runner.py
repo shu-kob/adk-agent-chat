@@ -32,6 +32,7 @@ from eval.aggregator import (
     aggregate_trials_by_case,
     detect_unstable_cases,
     compute_category_matrix,
+    compute_assertion_failure_breakdown,
     generate_markdown_report
 )
 
@@ -196,9 +197,10 @@ def run_benchmark():
                 if error_msg:
                     score = None
                     reasons = [f"API Execution Error: {error_msg}"]
+                    assertions = []
                     status = "error"
                 else:
-                    score, reasons = Evaluator.evaluate(eval_type, response_text, expected)
+                    score, reasons, assertions = Evaluator.evaluate_detailed(eval_type, response_text, expected)
                     status = "success"
                     case_scores.append(score)
 
@@ -223,14 +225,15 @@ def run_benchmark():
                     prompt_tokens=prompt_tokens,
                     candidate_tokens=candidate_tokens,
                     cost_usd=cost_usd,
-                    reasons=reasons
+                    reasons=reasons,
+                    assertions=assertions
                 )
                 all_trial_records.append(record)
                 time.sleep(0.3)
 
             # ケースの試行結果表示
             if case_scores:
-                median_score = statistics_median = sorted(case_scores)[len(case_scores)//2]
+                median_score = sorted(case_scores)[len(case_scores)//2]
                 print(f"✅ Med: {median_score * 100:>3.0f} pts | Scores: {[int(s*100) for s in case_scores]}")
             else:
                 print(f"❌ Error in all trials")
@@ -240,11 +243,12 @@ def run_benchmark():
     MergeGuard.validate_mergeable(all_trial_records)
     print("  ✅ All records share strictly identical environment and versions.")
 
-    # 6. 集計計算 (中央値、カテゴリマトリクス、不安定ケース)
+    # 6. 集計計算 (中央値、カテゴリマトリクス、不安定ケース、アサーション失敗内訳)
     categories = sorted(list(set(c["category"] for c in BENCHMARK_CASES)))
     case_summary = aggregate_trials_by_case(all_trial_records)
     unstable_cases = detect_unstable_cases(case_summary)
     category_matrix = compute_category_matrix(case_summary, categories, valid_models)
+    assertion_failures = compute_assertion_failure_breakdown(all_trial_records)
 
     batch_end_dt = datetime.now()
     batch_end_iso = batch_end_dt.isoformat()
@@ -269,7 +273,12 @@ def run_benchmark():
     }
 
     # 7. レポート生成 & 保存
-    report_text = generate_markdown_report(batch_meta, category_matrix, unstable_cases)
+    report_text = generate_markdown_report(
+        batch_meta,
+        category_matrix,
+        unstable_cases,
+        assertion_failures=assertion_failures
+    )
 
     report_path = os.path.join(results_dir, f"eval_report_phase1_{timestamp_str}.md")
     latest_report_path = os.path.join(results_dir, "eval_report_latest.md")
