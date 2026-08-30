@@ -1,24 +1,42 @@
 """
-Eval Execution Metadata, Version Tracking, and Merge Guard Module
+評価実行メタデータ、バージョン追跡 & マージガードモジュール (backend/eval/guard.py)
+
+【役割】
+- 評価の各試行レコードに対して、18項目に及ぶ厳密な実行メタデータ（ハッシュ、SDKバージョン、パラメータ等）を付与する。
+- 異なる実行経路（Vertex AI vs AI Studio）やインストラクションハッシュの結果を誤って単一マトリクスに統合することを防ぐ「マージガード (MergeGuard)」を提供する。
 """
 
 import hashlib
 import importlib.metadata
 from typing import Dict, Any, List, Optional
 
-DATASET_VERSION = "v1.0.0"
-EVALUATOR_VERSION = "v1.0.0"
+# データセットおよび採点エンジンのバージョン識別子
+DATASET_VERSION: str = "v2.0.0"
+EVALUATOR_VERSION: str = "v2.0.0"
 
 class MergeGuardViolationError(ValueError):
-    """Raised when evaluation records with mismatched environments or parameters are merged."""
+    """
+    実行環境、プロバイダルート、インストラクションハッシュ、データセットバージョンが異なる
+    互換性のない評価レコードを単一マトリクスに統合しようとした際に送出される例外。
+    """
     pass
 
 def compute_instruction_hash(instruction: str) -> str:
-    """Compute first 12 characters of SHA-256 hash of system instruction."""
+    """
+    システムインストラクション文字列の SHA-256 ハッシュを計算し、先頭 12 文字を返す。
+    プロンプト変更をまたいだ無効な比較を防ぐために使用する。
+    
+    :param instruction: システムプロンプト/指示テキスト
+    :return: ハッシュ文字列 (12文字)
+    """
     return hashlib.sha256(instruction.encode("utf-8")).hexdigest()[:12]
 
 def get_sdk_versions() -> Dict[str, str]:
-    """Retrieve installed versions of relevant Google SDKs."""
+    """
+    実行環境にインストールされている主要 Google SDK (`google-genai`, `google-adk`) のバージョン辞書を取得する。
+    
+    :return: {"google_genai": "x.y.z", "google_adk": "x.y.z"} 形式の辞書
+    """
     versions = {}
     for pkg, key in [("google-genai", "google_genai"), ("google-adk", "google_adk")]:
         try:
@@ -48,10 +66,39 @@ def create_trial_record(
     prompt_tokens: int = 0,
     candidate_tokens: int = 0,
     cost_usd: float = 0.0,
-    reasons: Optional[List[str]] = None
+    reasons: Optional[List[str]] = None,
+    assertions: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
     """
-    Constructs a fully-typed single trial record meeting SPECIFICATION_ADDENDUM_v1 Phase 1.4 schema.
+    SPECIFICATION_ADDENDUM_v1 Phase 1.4 & 2.2 スキーマに準拠した、単一試行レコード (1行) を構築する。
+    
+    【特徴】
+    - status="error" の場合、score は 0 ではなく None (null) として記録され、成功ケースと明確に分離される。
+    - N候補モデルへの拡張が容易な行指向のフラット構造。
+    
+    :param run_id: 実行バッチの一意識別子
+    :param trial_index: 同一ケース・モデル内での試行番号 (0-origin)
+    :param case_id: 評価ケースID (例: 'struct_01')
+    :param category: 評価カテゴリ (例: 'structured_output')
+    :param model_id: 完全なモデルバージョン文字列
+    :param provider_route: 実行経路 ('vertex_ai' または 'ai_studio')
+    :param location: リージョン名 (Vertex AI の場合)
+    :param execution_path: エージェント実行経路 ('adk' または 'genai_sdk_direct')
+    :param instruction: 使用されたシステムインストラクション
+    :param generation_config: temperature, seed, max_output_tokens などのパラメータ辞書
+    :param status: 実行ステータス ('success' または 'error')
+    :param error_type: エラー発生時の例外種別 (成功時は None)
+    :param latency_ms: 応答所要時間 (ミリ秒)
+    :param score: 採点スコア (0.0〜1.0, エラー時は None)
+    :param raw_output: モデルの生出力文字列
+    :param title: テストケースのタイトル
+    :param eval_type: 評価タイプ
+    :param prompt_tokens: 入力トークン数
+    :param candidate_tokens: 出力トークン数
+    :param cost_usd: 概算コスト (USD)
+    :param reasons: 採点理由メッセージリスト
+    :param assertions: アサーション単位の合否詳細リスト
+    :return: 完全な試行レコード辞書
     """
     is_error = (status == "error")
 
@@ -79,16 +126,18 @@ def create_trial_record(
         "prompt_tokens": prompt_tokens,
         "candidate_tokens": candidate_tokens,
         "cost_usd": cost_usd,
-        "reasons": reasons or []
+        "reasons": reasons or [],
+        "assertions": assertions or []
     }
     return record
 
 
 class MergeGuard:
     """
-    Validates that records to be merged into a single comparison matrix
-    strictly share identical execution environments and versions.
+    集計時に、比較不能な異なる環境・バージョンのレコードが単一の比較マトリクスに
+    混入・統合されることを防ぐバリデータークラス。
     """
+    # 一致していなければならない必須ガードフィールド一覧
     GUARD_FIELDS = [
         "provider_route",
         "instruction_hash",
@@ -98,6 +147,14 @@ class MergeGuard:
 
     @classmethod
     def validate_mergeable(cls, records: List[Dict[str, Any]]) -> bool:
+        """
+        全レコードのガードフィールドが完全に一致しているかを検証する。
+        不一致を発見した場合は MergeGuardViolationError を送出して処理を中断する。
+        
+        :param records: 検証対象の試行レコードリスト
+        :return: True (全レコードが整合している場合)
+        :raises MergeGuardViolationError: 異なる実行環境やハッシュが混在している場合
+        """
         if not records:
             return True
 
@@ -108,7 +165,7 @@ class MergeGuard:
                 rec_val = rec.get(field)
                 if base_val != rec_val:
                     raise MergeGuardViolationError(
-                        f"MergeGuard Violation at record {idx}: '{field}' mismatch "
-                        f"('{base_val}' vs '{rec_val}'). Cannot merge distinct environments into single matrix."
+                        f"MergeGuard Violation at record {idx}: '{field}' 不一致 "
+                        f"('{base_val}' vs '{rec_val}')。異なる実行環境・ハッシュの結果を単一表に統合することはできません。"
                     )
         return True

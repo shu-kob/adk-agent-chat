@@ -1,6 +1,11 @@
 """
-Evaluation Result Aggregator & Objective Report Generator
-Implements multi-trial median calculation, instability detection, and strictly objective reporting.
+評価結果集計 & 客観的マークダウンレポート生成モジュール (backend/eval/aggregator.py)
+
+【役割】
+- 複数試行の生データから代表値として中央値 (Median)、ばらつき (min/max/stddev) を算出する。
+- 試行間で結果が割れた「不安定ケース (Unstable cases)」を検出する。
+- アサーション単位の失敗内訳（どの制約で何回落ちたか）を集計する。
+- サンプル数付きパーセンテージ、母数<5の注意マーク、主観的推奨文の排除など、厳格な記述制約に従ったレポートを生成する。
 """
 
 import statistics
@@ -8,8 +13,11 @@ from typing import Dict, Any, List, Tuple, Optional
 
 def aggregate_trials_by_case(trials: List[Dict[str, Any]]) -> Dict[Tuple[str, str], Dict[str, Any]]:
     """
-    Groups trial records by (case_id, model_id) and computes median score,
-    spread (min, max, stddev), success/error counts, and instability.
+    試行レコード一覧を (case_id, model_id) でグループ化し、中央値スコア、最小/最大、標準偏差、
+    成功/エラー数、および不安定判定を集計する。
+    
+    :param trials: create_trial_record で作成された試行レコードのリスト
+    :return: {(case_id, model_id): 集計結果辞書}
     """
     grouped: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
     for t in trials:
@@ -22,6 +30,7 @@ def aggregate_trials_by_case(trials: List[Dict[str, Any]]) -> Dict[Tuple[str, st
         category = t_list[0].get("category", "")
         title = t_list[0].get("title", case_id)
         
+        # 成功した試行のみからスコアを抽出 (エラーレコードは除外)
         valid_scores = [t["score"] for t in t_list if t.get("score") is not None and t.get("status") == "success"]
         latencies_ms = [t.get("latency_ms", 0) for t in t_list if t.get("latency_ms") is not None]
         error_records = [t for t in t_list if t.get("status") == "error"]
@@ -30,12 +39,13 @@ def aggregate_trials_by_case(trials: List[Dict[str, Any]]) -> Dict[Tuple[str, st
         success_count = len(valid_scores)
         error_count = len(error_records)
 
+        # 代表値として中央値 (Median) を採用
         if valid_scores:
             median_score = round(statistics.median(valid_scores), 3)
             min_score = round(min(valid_scores), 3)
             max_score = round(max(valid_scores), 3)
             std_dev = round(statistics.stdev(valid_scores), 3) if len(valid_scores) > 1 else 0.0
-            is_unstable = (min_score != max_score)
+            is_unstable = (min_score != max_score)  # 試行間でスコアにブレがあるか判定
         else:
             median_score = None
             min_score = None
@@ -65,11 +75,24 @@ def aggregate_trials_by_case(trials: List[Dict[str, Any]]) -> Dict[Tuple[str, st
     return summary
 
 def detect_unstable_cases(case_summary: Dict[Tuple[str, str], Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Identifies cases where scores varied across trials."""
+    """
+    同一 (case, model) の試行間でスコアが割れたケース（プロンプトやケース設計の不備を示唆）を抽出する。
+    
+    :param case_summary: aggregate_trials_by_case の戻り値
+    :return: 不安定ケース情報のリスト
+    """
     return [info for info in case_summary.values() if info.get("is_unstable") is True]
 
 def format_percentage_with_sample_size(score_pct: float, count: int, total: int) -> str:
-    """Formats percentage with explicit sample size (e.g. '50.0% (1/2)') and warning on total < 5."""
+    """
+    パーセンテージにサンプル数を併記し、母数 < 5 の場合は注意マークを付与する。
+    例: 66.7% (2/3) ⚠️ または 80.0% (8/10)
+    
+    :param score_pct: 平均スコア (%)
+    :param count: 満点合格したケース数
+    :param total: 対象カテゴリの総ケース数
+    :return: フォーマット済み文字列
+    """
     base = f"{score_pct:.1f}% ({count}/{total})"
     if total < 5:
         base += " ⚠️"
@@ -80,7 +103,14 @@ def compute_category_matrix(
     categories: List[str],
     models: List[str]
 ) -> Dict[str, Dict[str, Dict[str, Any]]]:
-    """Computes category-level aggregated statistics using median representative values."""
+    """
+    カテゴリ × モデルごとの代表値スコアマトリクスを集計する。
+    
+    :param case_summary: aggregate_trials_by_case の戻り値
+    :param categories: 評価カテゴリ一覧
+    :param models: 評価モデル一覧
+    :return: {カテゴリ名: {モデル名: {score_pct, passed, total, avg_latency_s}}}
+    """
     matrix: Dict[str, Dict[str, Dict[str, Any]]] = {cat: {} for cat in categories}
 
     for cat in categories:
@@ -108,19 +138,48 @@ def compute_category_matrix(
 
     return matrix
 
+def compute_assertion_failure_breakdown(trial_records: List[Dict[str, Any]]) -> Dict[str, Dict[str, Dict[str, int]]]:
+    """
+    アサーション（制約・検証項目）ごとの失敗回数をモデル別・カテゴリ別に集計する。
+    
+    :param trial_records: 全試行レコードのリスト
+    :return: { モデル名: { カテゴリ名: { アサーション名: 失敗回数 } } }
+    """
+    breakdown: Dict[str, Dict[str, Dict[str, int]]] = {}
+
+    for record in trial_records:
+        model_id = record.get("model_id", "unknown")
+        category = record.get("category", "unknown")
+        assertions = record.get("assertions", [])
+
+        for a in assertions:
+            if not a.get("passed", True):
+                name = a.get("name", "unnamed_assertion")
+                breakdown.setdefault(model_id, {}).setdefault(category, {})
+                breakdown[model_id][category][name] = breakdown[model_id][category].get(name, 0) + 1
+
+    return breakdown
+
 def generate_markdown_report(
     batch_meta: Dict[str, Any],
     category_matrix: Dict[str, Dict[str, Dict[str, Any]]],
-    unstable_cases: List[Dict[str, Any]]
+    unstable_cases: List[Dict[str, Any]],
+    assertion_failures: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None
 ) -> str:
     """
-    Generates a structured, strictly objective Markdown benchmark report
-    meeting SPECIFICATION_ADDENDUM_v1 Phase 1.7 constraints.
+    SPECIFICATION_ADDENDUM_v1 Phase 1.7 & 2.2 の制約に完全準拠した、
+    客観的なマークダウンレポート文字列を生成する。
+    
+    :param batch_meta: 実行条件・環境メタデータ
+    :param category_matrix: カテゴリ別集計マトリクス
+    :param unstable_cases: 試行間で結果が割れた不安定ケース一覧
+    :param assertion_failures: アサーション別失敗内訳辞書
+    :return: 完成した Markdown レポートテキスト
     """
     lines = []
     lines.append("# 📊 LLM Benchmark Evaluation Report\n")
 
-    # 1. Execution Conditions Summary
+    # 1. 実行条件サマリ (必須)
     lines.append("## 1. 実行条件サマリ\n")
     lines.append(f"- **Run ID**: `{batch_meta.get('run_id')}`")
     lines.append(f"- **実行経路 (provider_route)**: `{batch_meta.get('provider_route')}` (location: `{batch_meta.get('location')}`)")
@@ -129,7 +188,7 @@ def generate_markdown_report(
     lines.append(f"- **データセットバージョン**: `{batch_meta.get('dataset_version')}`")
     lines.append(f"- **評価対象モデル一覧**: {', '.join(f'`{m}`' for m in batch_meta.get('models', []))}\n")
 
-    # 2. Category-wise Score Matrix
+    # 2. カテゴリ別評価マトリクス (サンプル数併記・母数<5注意マーク)
     lines.append("## 2. カテゴリ別評価マトリクス\n")
     models = batch_meta.get("models", [])
     categories = list(category_matrix.keys())
@@ -149,9 +208,27 @@ def generate_markdown_report(
 
     lines.append("\n> ⚠️ **注記**: 母数（テストケース数）が 5 未満のセルには注意マークが付与されています。サンプル数が少なく統計的に有意な差と断定できない可能性があります。\n")
 
-    # 3. Unstable Cases
+    # 3. アサーション別 失敗内訳 (Phase 2)
+    if assertion_failures:
+        lines.append("## 3. アサーション別 失敗内訳 (制約違反の分析)\n")
+        has_any_failure = False
+        for m in models:
+            m_failures = assertion_failures.get(m, {})
+            if m_failures:
+                has_any_failure = True
+                lines.append(f"### モデル: `{m}`\n")
+                lines.append("| カテゴリ | 失敗アサーション名 | 失敗回数 |")
+                lines.append("|:---|:---|:---:|")
+                for cat, a_dict in m_failures.items():
+                    for a_name, count in sorted(a_dict.items(), key=lambda x: x[1], reverse=True):
+                        lines.append(f"| `{cat}` | `{a_name}` | {count} 回失敗 |")
+                lines.append("")
+        if not has_any_failure:
+            lines.append("全試行においてアサーション失敗は検出されませんでした。\n")
+
+    # 4. 不安定ケース一覧
     if unstable_cases:
-        lines.append("## 3. 試行間で結果が不安定なケース一覧 (要ケース精査)\n")
+        lines.append("## 4. 試行間で結果が不安定なケース一覧 (要ケース精査)\n")
         lines.append("| Case ID | Category | Model | Min Score | Max Score | 試行回数 |")
         lines.append("|:---|:---|:---|:---:|:---:|:---:|")
         for u in unstable_cases:

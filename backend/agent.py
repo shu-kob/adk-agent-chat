@@ -1,11 +1,21 @@
+"""
+Google Agent Development Kit (ADK) エージェント & セッションライフサイクル管理モジュール (backend/agent.py)
+
+【役割】
+- Google ADK の LlmAgent, Runner, InMemorySessionService をインスタンス化し、会話コンテキストをセッションID単位で管理する。
+- 評価モード（allow_fallback=False）および本番チャットモード（allow_fallback=True: ADK失敗時にgoogle-genai直呼びへフォールバック）を制御する。
+- 実行経路（'adk' または 'genai_sdk_fallback'）を追跡・記録する。
+"""
+
 import asyncio
 import logging
-from typing import AsyncGenerator, Dict, Any, Optional
+from typing import Optional
 import os
-import config
+import config  # config.py から GEMINI_MODEL, GOOGLE_API_KEY, USE_VERTEXAI, GCP_PROJECT 等を参照
 
 logger = logging.getLogger("adk_agent")
 
+# Google ADK パッケージのインポート試行
 try:
     from google.adk.agents.llm_agent import LlmAgent
     from google.adk.runners import Runner
@@ -14,33 +24,44 @@ try:
     ADK_AVAILABLE = True
 except ImportError:
     ADK_AVAILABLE = False
-    logger.warning("google-adk package not found. Falling back to google-genai direct SDK interface.")
+    logger.warning("google-adk パッケージが見つかりません。google-genai SDK 直接呼び出しへフォールバックします。")
 
+# Google GenAI SDK パッケージのインポート試行
 try:
     from google import genai
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
-    logger.warning("google-genai package not found.")
+    logger.warning("google-genai パッケージが見つかりません。")
 
 
 class ChatAgentManager:
     """
-    Manages the Google ADK Agent instance, runner, and session lifecycle.
+    Google ADK Agent のインスタンス、ランナー、およびセッションのライフサイクルを統合管理するクラス
     """
     def __init__(self, model_name: str = config.GEMINI_MODEL, allow_fallback: bool = True):
+        """
+        初期化メソッド
+        
+        :param model_name: 使用する Gemini モデル名 (デフォルト: config.GEMINI_MODEL)
+        :param allow_fallback: ADK 実行失敗時に GenAI SDK 直呼びへフォールバックすることを許可するかどうか。
+                              評価実行時は測定の厳密性を確保するため False を指定する。
+        """
         self.model_name = model_name
         self.allow_fallback = allow_fallback
-        self.last_execution_path: Optional[str] = None
+        self.last_execution_path: Optional[str] = None  # 直近の実行経路 ('adk' または 'genai_sdk_fallback')
         self.session_service = None
         self.runner = None
         self.adk_agent = None
         self._init_adk()
 
     def _init_adk(self):
+        """
+        Google ADK の LlmAgent, InMemorySessionService, Runner を初期化する内部メソッド
+        """
         if ADK_AVAILABLE:
             try:
-                # Initialize ADK LlmAgent
+                # 1. システムインストラクションを付与した LlmAgent の作成
                 self.adk_agent = LlmAgent(
                     name="chat_assistant",
                     model=self.model_name,
@@ -50,20 +71,28 @@ class ChatAgentManager:
                         "Respond concisely and accurately in markdown format when appropriate."
                     )
                 )
+                # 2. セッション管理サービスの作成
                 self.session_service = InMemorySessionService()
+                # 3. エージェントを実行する Runner の作成
                 self.runner = Runner(
                     agent=self.adk_agent,
                     app_name="adk_chat_app",
                     session_service=self.session_service
                 )
-                logger.info(f"Successfully initialized ADK Agent with model: {self.model_name}")
+                logger.info(f"ADK Agent の初期化に成功しました (モデル: {self.model_name})")
             except Exception as e:
-                logger.error(f"Failed to initialize ADK Agent: {e}")
+                logger.error(f"ADK Agent の初期化に失敗しました: {e}")
 
     async def get_or_create_session(self, session_id: str, user_id: str = "default_user"):
+        """
+        指定されたセッションIDに対応するセッションオブジェクトを取得、存在しなければ新規作成する。
+        
+        :param session_id: セッションの一意識別子
+        :param user_id: ユーザー識別子
+        :return: Session オブジェクト (取得不可の場合は None)
+        """
         if ADK_AVAILABLE and self.session_service:
             try:
-                # Check if get_session is coroutine or normal method
                 res = self.session_service.get_session(
                     app_name="adk_chat_app",
                     user_id=user_id,
@@ -80,27 +109,35 @@ class ChatAgentManager:
                     session = await res_create if asyncio.iscoroutine(res_create) else res_create
                 return session
             except Exception as e:
-                logger.error(f"Error fetching/creating session {session_id}: {e}")
+                logger.error(f"セッション {session_id} の取得/作成中にエラーが発生しました: {e}")
         return None
 
     async def generate_response(self, session_id: str, prompt: str, user_id: str = "default_user") -> str:
         """
-        Processes a user message and returns the complete text response.
+        ユーザープロンプトを処理し、AI からのテキスト応答を生成して返却する。
+        
+        :param session_id: 会話履歴を保持するセッションID
+        :param prompt: ユーザー入力テキスト
+        :param user_id: ユーザー識別子
+        :return: 生成された応答文字列
+        :raises RuntimeError: allow_fallback=False かつ ADK 実行失敗時に例外を送出
         """
         self.last_execution_path = None
 
+        # 認証情報の事前検証
         if not config.USE_VERTEXAI and not config.GOOGLE_API_KEY:
             return (
                 "⚠️ Authentication missing. Please set `GOOGLE_API_KEY` for AI Studio, "
                 "or set `GOOGLE_GENAI_USE_VERTEXAI=true` and run `gcloud auth application-default login`."
             )
 
-        # 1. Try ADK Runner first if available
+        # 1. Google ADK Runner 経由でのエージェント実行を優先試行
         if ADK_AVAILABLE and self.runner:
             try:
                 await self.get_or_create_session(session_id=session_id, user_id=user_id)
                 response_text = ""
-                # Execute agent via runner
+                
+                # Runner を実行してイベントストリームを取得
                 run_res = self.runner.run(
                     user_id=user_id,
                     session_id=session_id,
@@ -112,6 +149,7 @@ class ChatAgentManager:
                     self.last_execution_path = "adk"
                     return events
 
+                # 非同期イテレータまたは通常のイテレータからテキストを抽出
                 if hasattr(events, "__aiter__"):
                     async for event in events:
                         if hasattr(event, "content") and event.content:
@@ -130,15 +168,15 @@ class ChatAgentManager:
                     return response_text
             except Exception as e:
                 if not self.allow_fallback:
-                    logger.error(f"ADK runner error (fallback disabled): {e}")
+                    logger.error(f"ADK runner error (フォールバック無効モード): {e}")
                     raise
-                logger.warning(f"ADK runner encounter: {e}. Falling back to direct client.")
+                logger.warning(f"ADK runner 実行エラー: {e}。GenAI SDK 直接呼び出しへフォールバックします。")
 
-        # If ADK was available but runner failed/not ready and fallback is disabled
+        # フォールバック無効モードで ADK が失敗した場合は例外を送出
         if ADK_AVAILABLE and not self.allow_fallback:
-            raise RuntimeError(f"ADK runner could not process request and fallback is disabled.")
+            raise RuntimeError("ADK runner could not process request and fallback is disabled.")
 
-        # 2. Fallback to google-genai SDK direct client call
+        # 2. google-genai SDK 直接呼び出しへのフォールバック (チャット本番用)
         if GENAI_AVAILABLE:
             try:
                 if config.USE_VERTEXAI:
@@ -157,7 +195,7 @@ class ChatAgentManager:
                 self.last_execution_path = "genai_sdk_fallback"
                 return response.text if response.text else "No response generated."
             except Exception as e:
-                logger.error(f"GenAI SDK execution error: {e}")
+                logger.error(f"GenAI SDK 実行エラー: {e}")
                 if not self.allow_fallback:
                     raise
                 return f"Error communicating with Gemini ({self.model_name}): {str(e)}"
@@ -169,7 +207,11 @@ class ChatAgentManager:
 
     async def clear_session(self, session_id: str, user_id: str = "default_user") -> bool:
         """
-        Clears/deletes the session state.
+        指定されたセッションIDの会話履歴メモリを破棄する。
+        
+        :param session_id: 破棄対象のセッションID
+        :param user_id: ユーザー識別子
+        :return: 破棄成功フラグ (bool)
         """
         if ADK_AVAILABLE and self.session_service:
             try:
@@ -182,8 +224,8 @@ class ChatAgentManager:
                     await res
                 return True
             except Exception as e:
-                logger.error(f"Error clearing session {session_id}: {e}")
+                logger.error(f"セッション {session_id} の削除中にエラーが発生しました: {e}")
         return True
 
-# Singleton instance
+# シングルトンインスタンスの生成 (FastAPI 等から共有参照)
 agent_manager = ChatAgentManager()

@@ -1,11 +1,24 @@
-# Rule: Specification Maintenance (仕様書同期ルール)
+# Rule: Development & Specification Standards (開発ルール & 仕様書同期規約)
 
-## Mandatory Directive
-1. **TDD (Test-Driven Development) の徹底**: 新機能の実装、改修、バグ修正、評価基盤のアップデートは必ずテストファースト (Red → Green → Refactor) で実施してください。
-2. **仕様書の同期更新**: 当リポジトリ内のソースコード（フロントエンド、バックエンド、評価基盤、設定ファイル等）を変更・追加・削除した場合は、必ず [docs/SPECIFICATION.md](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION.md) を確認し、最新の仕様と整合するように同期更新を行ってください。
-3. また、評価基盤に関する変更は [docs/SPECIFICATION_ADDENDUM_v1.md](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md) のフェーズ設計（Phase 1〜3）とも整合させてください。
+## 📌 必須開発ルール (Mandatory Directives)
 
-## 対象項目
+### 1. TDD (Test-Driven Development) の徹底
+- 新機能の実装、機能改修、バグ修正、評価基盤の拡張は、必ず **テストファースト (Red → Green → Refactor)** のサイクルで実施してください。
+- 実装前に単体テストを作成して失敗 (Red) を確認し、実装コードを追加して成功 (Green) を確認してください。
+
+### 2. 詳細な日本語コメント・Docstring の徹底
+- **引数・戻り値・型の明記**: 関数・クラス・メソッドには、引数の意味・型、戻り値、例外を明記した丁寧な日本語 Docstring を付与してください。
+- **処理意図の解説**: 複雑なロジックや条件分岐には、「何のためにどのような処理を行っているか」が第三者にも直感的にわかる解説コメントをこまめに記述してください。
+- **グローバル変数・外部参照の明示**: 設定値、定数、グローバル変数、外部ファイルからのインポート参照については、その役割・用途・参照元を明確にコメントで明記してください。
+- **コード変更時のコメント同期**: 実装・シグネチャ・ロジックを変更した際は、必ず該当箇所の日本語コメントや Docstring も同時に整合性を保って更新してください（古いコメントを残さないこと）。
+
+### 3. 仕様書の同期更新 (Specification Maintenance)
+- 当リポジトリ内のソースコード（フロントエンド、バックエンド、評価基盤、設定ファイル等）を変更・追加・削除した場合は、必ず [docs/SPECIFICATION.md](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION.md) を確認し、最新の仕様と整合するように同期更新を行ってください。
+- 評価基盤に関する変更は [docs/SPECIFICATION_ADDENDUM_v1.md](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md) のフェーズ設計（Phase 1〜3）とも整合させてください。
+
+---
+
+## 🔍 仕様書同期・コメント対象項目
 - API エンドポイントやリクエスト/レスポンススキーマの変更
 - 環境変数や設定項目の追加・変更
 - エージェントロジックやセッション管理方式の変更
