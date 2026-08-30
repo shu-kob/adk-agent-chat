@@ -28,14 +28,20 @@ graph TD
     end
 
     subgraph LLM Providers
-        ADK <-->|Vertex AI or AI Studio| Gemini[Gemini Models<br/>gemini-2.5-flash / gemini-3.5-flash-lite 等]
-        GenAISDK <--> Gemini
+        ADK <-->|Vertex AI or AI Studio| Gemini[Gemini Models<br/>gemini-3.7-flash / gemini-3.5-flash-lite / gemini-3.1-pro-preview]
     end
-
-    subgraph Eval System
-        EvalRunner[eval/runner.py] --> EvalDataset[eval/dataset.py<br/>13 Benchmark Cases]
-        EvalRunner --> Evaluator[eval/evaluator.py<br/>Deterministic Scoring]
-        EvalRunner --> EvalResults[eval/results/<br/>Matrix & Reports]
+    
+    subgraph Evaluation["LLM Evaluation Benchmark (Phase 1 & 2)"]
+        Dataset[(Benchmark Dataset<br/>30+ Cases, JSON Externalized)]
+        Runner[eval/runner.py<br/>Multi-trial, temp=0.0]
+        Evaluator[eval/evaluator.py<br/>Deterministic Assertions]
+        Guard[eval/guard.py<br/>MergeGuard & Version Track]
+        Aggregator[eval/aggregator.py<br/>Median & Failure Breakdown]
+        Runner -->|Load| Dataset
+        Runner -->|Ping Check| Gemini
+        Runner -->|Eval Assertions| Evaluator
+        Runner -->|Validate| Guard
+        Runner -->|Aggregate| Aggregator
     end
 ```
 
@@ -43,10 +49,13 @@ graph TD
 
 ## 2. システム構成 & 技術スタック
 
-| レイヤー | 使用技術 / ライブラリ | バージョン / 特徴 |
+### 1.2 技術スタック
+
+| レイヤー | 技術 / ライブラリ | バージョン / 詳細 |
 | :--- | :--- | :--- |
-| **Frontend** | React, TypeScript, Vite | React 18, StrictMode |
-| **Frontend Styling**| Vanilla CSS (CSS Variables) | Modern Dark Mode, Glassmorphism, Responsive |
+| **Backend Framework** | FastAPI (Python) | 3.11+ / 非同期 REST API サーバー |
+| **Agent Framework** | Google Agent Development Kit (ADK) | `google-adk` / `google-genai` (Fallback 対応) |
+| **LLM Models** | Gemini 系列 | `gemini-3.7-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-pro-preview` |
 | **Frontend Testing**| Vitest, React Testing Library | コンポーネント単体テスト |
 | **Backend** | Python, FastAPI, Uvicorn | Python 3.10+, 非同期 (async/await) |
 | **Agent Framework** | Google Agent Development Kit (`google-adk`) | `LlmAgent`, `Runner`, `InMemorySessionService` |
@@ -195,6 +204,7 @@ frontend/src/
 8. **モデル事前疎通チェック (`eval/precheck.py`)**: 実行前に最小 ping リクエストでモデルの応答可能性を検証し、未解決モデルはスキップ。
 9. **集計時マージガード (`eval/guard.py`)**: `provider_route`, `instruction_hash`, `dataset_version`, `evaluator_version` のいずれかが異なるデータの単一表への統合を禁止（`MergeGuardViolationError` 送出）。
 10. **客観的レポート生成 (`eval/aggregator.py`)**: サンプル数併記 (`50.0% (1/2)`), 母数 < 5 の注意マーク `⚠️`、断定的主観文の排除。
+11. **評価対象ターゲットモデル (`eval/runner.py`)**: `gemini-3.7-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-pro-preview` を対象として比較評価を実施。
 
 | カテゴリ | ケース数 | 難易度傾斜 | 評価内容・検証ロジック |
 | :--- | :---: | :---: | :--- |

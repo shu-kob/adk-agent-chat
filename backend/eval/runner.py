@@ -49,9 +49,9 @@ load_dotenv()
 # ==============================================================================
 # ベンチマークで比較評価するターゲットモデル一覧
 TARGET_MODELS: List[str] = [
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash-lite",
+    "gemini-3.7-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-pro-preview",
 ]
 
 # 共通システムインストラクション
@@ -59,9 +59,9 @@ DEFAULT_INSTRUCTION: str = "You are a helpful, friendly, and highly intelligent 
 
 # 概算トークン単価 (USD per 1M tokens) - 実費トラッキング用
 MODEL_PRICING: Dict[str, Dict[str, float]] = {
-    "gemini-2.5-flash-lite": {"input": 0.075, "output": 0.30},
-    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
-    "gemini-2.5-pro": {"input": 1.25, "output": 5.00},
+    "gemini-3.5-flash-lite": {"input": 0.075, "output": 0.30},
+    "gemini-3.7-flash": {"input": 0.15, "output": 0.60},
+    "gemini-3.1-pro-preview": {"input": 1.25, "output": 5.00},
     "default": {"input": 0.15, "output": 0.60}
 }
 

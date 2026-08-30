@@ -7,7 +7,7 @@ from eval.aggregator import (
 def test_compute_assertion_failure_breakdown():
     trial_records = [
         {
-            "model_id": "gemini-2.5-flash",
+            "model_id": "gemini-3.7-flash",
             "category": "structured_output",
             "case_id": "struct_01",
             "status": "success",
@@ -17,7 +17,7 @@ def test_compute_assertion_failure_breakdown():
             ]
         },
         {
-            "model_id": "gemini-2.5-flash",
+            "model_id": "gemini-3.7-flash",
             "category": "structured_output",
             "case_id": "struct_02",
             "status": "success",
@@ -27,7 +27,7 @@ def test_compute_assertion_failure_breakdown():
             ]
         },
         {
-            "model_id": "gemini-2.5-flash",
+            "model_id": "gemini-3.7-flash",
             "category": "negative_constraint",
             "case_id": "neg_01",
             "status": "success",
@@ -38,8 +38,8 @@ def test_compute_assertion_failure_breakdown():
     ]
 
     breakdown = compute_assertion_failure_breakdown(trial_records)
-    assert "gemini-2.5-flash" in breakdown
-    model_breakdown = breakdown["gemini-2.5-flash"]
+    assert "gemini-3.7-flash" in breakdown
+    model_breakdown = breakdown["gemini-3.7-flash"]
     assert "structured_output" in model_breakdown
     assert model_breakdown["structured_output"]["no_markdown_fence"] == 2
     assert "negative_constraint" in model_breakdown
@@ -53,16 +53,16 @@ def test_markdown_report_includes_assertion_breakdown():
         "trials_per_case": 3,
         "temperature": 0.0,
         "dataset_version": "v2.0.0",
-        "models": ["gemini-2.5-flash"]
+        "models": ["gemini-3.7-flash"]
     }
     category_matrix = {
         "structured_output": {
-            "gemini-2.5-flash": {"score_pct": 80.0, "passed": 8, "total": 10, "avg_latency_s": 2.5}
+            "gemini-3.7-flash": {"score_pct": 80.0, "passed": 8, "total": 10, "avg_latency_s": 2.5}
         }
     }
     unstable_cases = []
     assertion_failures = {
-        "gemini-2.5-flash": {
+        "gemini-3.7-flash": {
             "structured_output": {"no_markdown_fence": 2}
         }
     }
