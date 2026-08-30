@@ -23,7 +23,8 @@ def test_clear_session():
 def test_generate_response_without_api_key(monkeypatch):
     async def run():
         monkeypatch.setattr("config.GOOGLE_API_KEY", "")
+        monkeypatch.setattr("config.USE_VERTEXAI", False)
         manager = ChatAgentManager(model_name="gemini-3.5-flash-lite")
         response = await manager.generate_response(session_id="test_s1", prompt="Hello")
-        assert "API key is missing" in response or "Error" in response
+        assert "Authentication missing" in response or "API key is missing" in response or "Error" in response
     asyncio.run(run())

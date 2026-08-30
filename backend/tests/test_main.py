@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from main import app
+import config
 
 client = TestClient(app)
 
@@ -9,7 +10,7 @@ def test_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["model"] == "gemini-3.5-flash-lite"
+    assert data["model"] == config.GEMINI_MODEL
 
 def test_config_endpoint():
     response = client.get("/api/config")
@@ -34,7 +35,7 @@ def test_chat_endpoint_success():
     data = response.json()
     assert "reply" in data
     assert data["session_id"] == "session_test_001"
-    assert data["model"] == "gemini-3.5-flash-lite"
+    assert data["model"] == config.GEMINI_MODEL
 
 def test_reset_session_endpoint():
     payload = {

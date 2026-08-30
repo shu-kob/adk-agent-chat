@@ -1,8 +1,9 @@
 # 📘 ADK Agent Chat システム全体詳細仕様書 (SPECIFICATION)
 
-> **⚠️ 仕様書保守ルール**:
-> 本リポジトリ内のソースコード（フロントエンド・バックエンド・評価基盤）に変更・機能追加・仕様変更を加えた場合は、**必ず本仕様書 (`docs/SPECIFICATION.md`) も同期して更新すること**。
-> なお、評価基盤の再設計・新機能（トラフィック蓄積/リプレイ等）については [追補仕様 (docs/SPECIFICATION_ADDENDUM_v1.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md) を参照。
+> **⚠️ 仕様書保守・開発ルール**:
+> 1. **TDD (Test-Driven Development) の徹底**: 新機能の追加、バグ修正、評価基盤の拡張・改修を行う際は、必ず **TDD (Red → Green → Refactor)** のサイクルで実装・検証すること。
+> 2. **仕様書の同期更新**: 本リポジトリ内のソースコード（フロントエンド・バックエンド・評価基盤）に変更・機能追加・仕様変更を加えた場合は、**必ず本仕様書 (`docs/SPECIFICATION.md`) も同期して更新すること**。
+> 3. なお、評価基盤の再設計・新機能（トラフィック蓄積/リプレイ等）については [追補仕様 (docs/SPECIFICATION_ADDENDUM_v1.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md) を参照。
 
 ---
 
@@ -176,8 +177,15 @@ frontend/src/
 
 ## 5. LLM ベンチマーク評価基盤仕様 (`backend/eval/`)
 
-### 5.1 評価カテゴリとテストケース設計方針
+### 5.1 測定の信頼性確保 & 評価設計原則 (Phase 1 準拠)
 評価は主観や LLM-as-a-judge によるブレを排除し、**100% 決定論的（Deterministic / Assertion-based）**なルールで採点します。
+
+1. **生成パラメータの固定**: `temperature=0.0`, `seed=42`, 各ケース定義ごとの `max_output_tokens`。
+2. **複数試行と代表値（中央値）**: 各 (case, model) に対して `EVAL_TRIALS`（既定 3 回）試行し、代表値として中央値 (Median) を採用。試行間のばらつき（min, max, stddev）および不安定ケースを自動検出。
+3. **フォールバック無効モード**: 評価実行時は `allow_fallback=False` とし、ADK 失敗時は例外として扱いスコア 0 に混ぜず `status="error"` として明示分離。
+4. **モデル事前疎通チェック (`eval/precheck.py`)**: 実行前に最小 ping リクエストでモデルの応答可能性を検証し、未解決モデルはスキップ。
+5. **集計時マージガード (`eval/guard.py`)**: `provider_route`, `instruction_hash`, `dataset_version`, `evaluator_version` のいずれかが異なるデータの単一表への統合を禁止（`MergeGuardViolationError` 送出）。
+6. **客観的レポート生成 (`eval/aggregator.py`)**: サンプル数併記 (`50.0% (1/2)`), 母数 < 5 の注意マーク `⚠️`、断定的主観文の排除。
 
 | カテゴリ | ケース数 | 評価内容・検証ロジック |
 | :--- | :---: | :--- |
@@ -193,11 +201,11 @@ frontend/src/
 - **ファイル出力場所**: `backend/eval/results/`
 - **保存成果物**:
   - `eval_raw_<timestamp>.json`: 全試行のローデータ
-    - `batch_meta`: `run_id`, `started_at`, `completed_at`, `duration_sec`, `total_cost_usd`（バッチ全体の所要時間・実費）
-    - `records`: 1 試行 1 レコードの行指向フラット配列 (`run_id`, `case_id`, `category`, `model`, `score`, `latency_sec`, `prompt_tokens`, `candidate_tokens`, `cost_usd`, `reasons`, `response`, `error`, `evaluated_at`)
-    - `runs`: 既存互換の階層型モデル別辞書
-    - `matrix`: カテゴリ別スコアマトリクス
-    - `stats`: モデル別平均スコア、平均レイテンシ、合計トークン数、概算コスト (`estimated_cost_usd`)
+    - `batch_meta`: `run_id`, `started_at`, `completed_at`, `duration_sec`, `total_cost_usd`, `provider_route`, `location`, `trials_per_case`, `temperature`, `seed`, `dataset_version`, `evaluator_version`, `models`, `skipped_models`
+    - `records`: 1 試行 1 レコードの行指向フラット配列 (`run_id`, `trial_index`, `case_id`, `category`, `model_id`, `score`, `latency_ms`, `prompt_tokens`, `candidate_tokens`, `cost_usd`, `instruction_hash`, `dataset_version`, `evaluator_version`, `status`, `error_type`, `raw_output`, `reasons`)
+    - `case_summary`: (case, model) 別の中央値、最小/最大スコア、不安定判定
+    - `category_matrix`: カテゴリ別スコアマトリクス（サンプル数付き）
+    - `unstable_cases`: 試行間で結果が割れた要精査ケース一覧
   - `eval_report_<timestamp>.md` / `eval_report_latest.md`: 自動生成マークダウンレポート（実行サマリー、マトリクス、各ケース詳細）
   - `eval_matrix_analysis.md`: モデル × カテゴリのクロス集計マトリクス & 考察レポート
 

@@ -28,8 +28,10 @@ class ChatAgentManager:
     """
     Manages the Google ADK Agent instance, runner, and session lifecycle.
     """
-    def __init__(self, model_name: str = config.GEMINI_MODEL):
+    def __init__(self, model_name: str = config.GEMINI_MODEL, allow_fallback: bool = True):
         self.model_name = model_name
+        self.allow_fallback = allow_fallback
+        self.last_execution_path: Optional[str] = None
         self.session_service = None
         self.runner = None
         self.adk_agent = None
@@ -57,7 +59,6 @@ class ChatAgentManager:
                 logger.info(f"Successfully initialized ADK Agent with model: {self.model_name}")
             except Exception as e:
                 logger.error(f"Failed to initialize ADK Agent: {e}")
-                ADK_AVAILABLE_LOCAL = False
 
     async def get_or_create_session(self, session_id: str, user_id: str = "default_user"):
         if ADK_AVAILABLE and self.session_service:
@@ -86,6 +87,8 @@ class ChatAgentManager:
         """
         Processes a user message and returns the complete text response.
         """
+        self.last_execution_path = None
+
         if not config.USE_VERTEXAI and not config.GOOGLE_API_KEY:
             return (
                 "⚠️ Authentication missing. Please set `GOOGLE_API_KEY` for AI Studio, "
@@ -106,6 +109,7 @@ class ChatAgentManager:
                 events = await run_res if asyncio.iscoroutine(run_res) else run_res
 
                 if isinstance(events, str):
+                    self.last_execution_path = "adk"
                     return events
 
                 if hasattr(events, "__aiter__"):
@@ -122,9 +126,17 @@ class ChatAgentManager:
                             response_text += str(event.text)
 
                 if response_text:
+                    self.last_execution_path = "adk"
                     return response_text
             except Exception as e:
-                logger.warning(f"ADK runner execution encounter: {e}. Falling back to direct client.")
+                if not self.allow_fallback:
+                    logger.error(f"ADK runner error (fallback disabled): {e}")
+                    raise
+                logger.warning(f"ADK runner encounter: {e}. Falling back to direct client.")
+
+        # If ADK was available but runner failed/not ready and fallback is disabled
+        if ADK_AVAILABLE and not self.allow_fallback:
+            raise RuntimeError(f"ADK runner could not process request and fallback is disabled.")
 
         # 2. Fallback to google-genai SDK direct client call
         if GENAI_AVAILABLE:
@@ -142,10 +154,16 @@ class ChatAgentManager:
                     model=self.model_name,
                     contents=prompt
                 )
+                self.last_execution_path = "genai_sdk_fallback"
                 return response.text if response.text else "No response generated."
             except Exception as e:
                 logger.error(f"GenAI SDK execution error: {e}")
+                if not self.allow_fallback:
+                    raise
                 return f"Error communicating with Gemini ({self.model_name}): {str(e)}"
+
+        if not self.allow_fallback:
+            raise RuntimeError("Neither google-adk nor google-genai could process the request.")
 
         return "Error: Neither google-adk nor google-genai could process the request."
 
