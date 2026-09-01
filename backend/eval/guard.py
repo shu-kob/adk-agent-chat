@@ -68,15 +68,22 @@ def create_trial_record(
     cost_usd: float = 0.0,
     reasons: Optional[List[str]] = None,
     assertions: Optional[List[Dict[str, Any]]] = None,
-    retry_count: int = 0
+    retry_count: int = 0,
+    finish_reason: Optional[str] = None,
+    truncated: Optional[bool] = None,
+    truncation_type: Optional[str] = None,
+    thinking_tokens: Optional[int] = None,
+    usage_raw: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    SPECIFICATION_ADDENDUM_v1 Phase 1.4 & 2.2 & v4 スキーマに準拠した、単一試行レコード (1行) を構築する。
+    SPECIFICATION_ADDENDUM_v1 & v4 & v5 & v6 スキーマに準拠した、単一試行レコード (1行) を構築する。
     
     【特徴】
     - status="error" の場合、score は 0 ではなく None (null) として記録され、成功ケースと明確に分離される。
     - N候補モデルへの拡張が容易な行指向のフラット構造。
     - v4: retry_count の記録に対応。
+    - v5: finish_reason, truncated, thinking_tokens, usage_raw の記録に対応。
+    - v6: truncation_type (thinking_dominant / output_dominant / unknown) の記録に対応。
     
     :param run_id: 実行バッチの一意識別子
     :param trial_index: 同一ケース・モデル内での試行番号 (0-origin)
@@ -100,6 +107,12 @@ def create_trial_record(
     :param cost_usd: 概算コスト (USD)
     :param reasons: 採点理由メッセージリスト
     :param assertions: アサーション単位の合否詳細リスト
+    :param retry_count: リトライ回数
+    :param finish_reason: APIが返した生の停止理由 (例: 'STOP', 'MAX_TOKENS')
+    :param truncated: トークン上限による打ち切りが発生したか否か
+    :param truncation_type: 打ち切りの種別 ('thinking_dominant' / 'output_dominant' / 'unknown' / None)
+    :param thinking_tokens: 内部推論 (Thinking) に消費されたトークン数
+    :param usage_raw: APIレスポンスの usage_metadata 生辞書
     :return: 完全な試行レコード辞書
     """
     is_error = (status == "error")
@@ -127,6 +140,11 @@ def create_trial_record(
         "raw_output": raw_output,
         "prompt_tokens": prompt_tokens,
         "candidate_tokens": candidate_tokens,
+        "thinking_tokens": thinking_tokens,
+        "finish_reason": finish_reason,
+        "truncated": truncated,
+        "truncation_type": truncation_type,
+        "usage_raw": usage_raw,
         "cost_usd": cost_usd,
         "retry_count": retry_count,
         "reasons": reasons or [],

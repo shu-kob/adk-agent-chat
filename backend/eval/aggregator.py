@@ -306,6 +306,124 @@ def compute_assertion_failure_breakdown(trial_records: List[Dict[str, Any]]) -> 
 
     return breakdown
 
+def compute_truncation_metrics(
+    trial_records: List[Dict[str, Any]],
+    models: List[str]
+) -> Dict[str, Any]:
+    """
+    SPECIFICATION_ADDENDUM_v5 & v6 準拠の打ち切り率 (truncation_rate)、
+    打ち切り種別 (thinking_dominant / output_dominant / unknown) 内訳、
+    停止理由 (finish_reason) 分布、および思考トークン (thinking_tokens) 統計を集計する。
+    
+    :param trial_records: 全試行レコードのリスト
+    :param models: 評価モデル一覧
+    :return: 打ち切り・種別・停止理由・思考トークンの集計辞書
+    """
+    metrics: Dict[str, Any] = {
+        "by_model": {},
+        "by_model_category": {}
+    }
+
+    # カテゴリ一覧の抽出
+    categories = sorted(list({r.get("category", "") for r in trial_records if r.get("category")}))
+
+    for m in models:
+        m_trials = [r for r in trial_records if r.get("model_id") == m]
+        m_total = len(m_trials)
+        m_truncated = sum(1 for r in m_trials if r.get("truncated") is True)
+        m_rate = round(m_truncated / m_total, 3) if m_total > 0 else 0.0
+
+        m_thinking_dom = sum(1 for r in m_trials if r.get("truncation_type") == "thinking_dominant")
+        m_output_dom = sum(1 for r in m_trials if r.get("truncation_type") == "output_dominant")
+        m_unknown_dom = sum(1 for r in m_trials if r.get("truncation_type") == "unknown")
+
+        # finish_reason 分布
+        m_finish_reasons: Dict[str, int] = {}
+        for r in m_trials:
+            fr = r.get("finish_reason")
+            fr_key = str(fr) if fr is not None else "null"
+            m_finish_reasons[fr_key] = m_finish_reasons.get(fr_key, 0) + 1
+
+        # thinking_tokens 統計
+        tt_values = [r["thinking_tokens"] for r in m_trials if r.get("thinking_tokens") is not None]
+        if tt_values:
+            tt_stats = {
+                "available": True,
+                "count": len(tt_values),
+                "median": round(statistics.median(tt_values), 1),
+                "mean": round(statistics.mean(tt_values), 1),
+                "min": min(tt_values),
+                "max": max(tt_values),
+                "null_count": m_total - len(tt_values)
+            }
+        else:
+            tt_stats = {
+                "available": False,
+                "count": 0,
+                "median": None,
+                "mean": None,
+                "min": None,
+                "max": None,
+                "null_count": m_total
+            }
+
+        # candidate_tokens 分布 (4096上限に対する余裕判定用)
+        cand_values = [r["candidate_tokens"] for r in m_trials if r.get("candidate_tokens") is not None]
+        cand_stats = {
+            "median": round(statistics.median(cand_values), 1) if cand_values else 0,
+            "mean": round(statistics.mean(cand_values), 1) if cand_values else 0,
+            "min": min(cand_values) if cand_values else 0,
+            "max": max(cand_values) if cand_values else 0
+        }
+
+        metrics["by_model"][m] = {
+            "model_id": m,
+            "total_trials": m_total,
+            "truncated_trials": m_truncated,
+            "truncation_rate": m_rate,
+            "thinking_dominant_trials": m_thinking_dom,
+            "thinking_dominant_rate": round(m_thinking_dom / m_total, 3) if m_total > 0 else 0.0,
+            "output_dominant_trials": m_output_dom,
+            "output_dominant_rate": round(m_output_dom / m_total, 3) if m_total > 0 else 0.0,
+            "unknown_trials": m_unknown_dom,
+            "finish_reasons": m_finish_reasons,
+            "thinking_tokens_stats": tt_stats,
+            "candidate_tokens_stats": cand_stats
+        }
+
+        # モデル × カテゴリ別
+        for cat in categories:
+            cat_trials = [r for r in m_trials if r.get("category") == cat]
+            cat_total = len(cat_trials)
+            cat_truncated = sum(1 for r in cat_trials if r.get("truncated") is True)
+            cat_rate = round(cat_truncated / cat_total, 3) if cat_total > 0 else 0.0
+
+            cat_thinking_dom = sum(1 for r in cat_trials if r.get("truncation_type") == "thinking_dominant")
+            cat_output_dom = sum(1 for r in cat_trials if r.get("truncation_type") == "output_dominant")
+            cat_unknown_dom = sum(1 for r in cat_trials if r.get("truncation_type") == "unknown")
+
+            cat_fr: Dict[str, int] = {}
+            for r in cat_trials:
+                fr = r.get("finish_reason")
+                fr_key = str(fr) if fr is not None else "null"
+                cat_fr[fr_key] = cat_fr.get(fr_key, 0) + 1
+
+            metrics["by_model_category"].setdefault(m, {})[cat] = {
+                "model_id": m,
+                "category": cat,
+                "total_trials": cat_total,
+                "truncated_trials": cat_truncated,
+                "truncation_rate": cat_rate,
+                "thinking_dominant_trials": cat_thinking_dom,
+                "thinking_dominant_rate": round(cat_thinking_dom / cat_total, 3) if cat_total > 0 else 0.0,
+                "output_dominant_trials": cat_output_dom,
+                "output_dominant_rate": round(cat_output_dom / cat_total, 3) if cat_total > 0 else 0.0,
+                "unknown_trials": cat_unknown_dom,
+                "finish_reasons": cat_fr
+            }
+
+    return metrics
+
 def generate_markdown_report(
     batch_meta: Dict[str, Any],
     category_matrix: Dict[str, Dict[str, Dict[str, Any]]],
@@ -315,10 +433,11 @@ def generate_markdown_report(
     common_case_matrix: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
     common_cases_count: Optional[int] = None,
     excluded_cases_count: Optional[int] = None,
-    unmeasured_cases: Optional[List[Dict[str, Any]]] = None
+    unmeasured_cases: Optional[List[Dict[str, Any]]] = None,
+    truncation_metrics: Optional[Dict[str, Any]] = None
 ) -> str:
     """
-    SPECIFICATION_ADDENDUM_v4 の制約に完全準拠した、客観的なマークダウンレポート文字列を生成する。
+    SPECIFICATION_ADDENDUM_v4 & v5 & v6 の制約に完全準拠した、客観的なマークダウンレポート文字列を生成する。
     """
     lines = []
     lines.append("# 📊 LLM Benchmark Evaluation Report\n")
@@ -408,9 +527,65 @@ def generate_markdown_report(
             lines.append(f"| `{m}` | `{cat}` | {p_ratio:.1f}% | {z_ratio:.1f}% | {std:.3f} | {trait} |")
     lines.append("")
 
-    # 5. アサーション別 失敗内訳
+    # 5. 打ち切り率 & 停止理由・思考トークン分析 (ADDENDUM v5 & v6)
+    if truncation_metrics:
+        lines.append("## 5. 打ち切り率 (Truncation Rate) & 種別・思考トークン分析\n")
+        lines.append("### モデル別・カテゴリ別 打ち切り率一覧\n")
+        lines.append("| モデル | カテゴリ | 総打ち切り率 | 思考起因 (`thinking_dominant`) | 出力起因 (`output_dominant`) | 停止理由内訳 (finish_reasons) |")
+        lines.append("|:---|:---|:---:|:---:|:---:|:---|")
+        
+        has_thinking_dominant = False
+        has_any_truncation = False
+
+        for m in models:
+            m_cat_metrics = truncation_metrics.get("by_model_category", {}).get(m, {})
+            for cat in categories:
+                c_m = m_cat_metrics.get(cat, {})
+                t_rate = c_m.get("truncation_rate", 0.0) * 100
+                t_cnt = c_m.get("truncated_trials", 0)
+                tot = c_m.get("total_trials", 0)
+
+                th_rate = c_m.get("thinking_dominant_rate", 0.0) * 100
+                th_cnt = c_m.get("thinking_dominant_trials", 0)
+                out_rate = c_m.get("output_dominant_rate", 0.0) * 100
+                out_cnt = c_m.get("output_dominant_trials", 0)
+
+                fr_str = ", ".join(f"`{k}`: {v}" for k, v in c_m.get("finish_reasons", {}).items())
+                warn = " ⚠️" if t_rate > 0 else ""
+                if t_rate > 0:
+                    has_any_truncation = True
+                if th_cnt > 0:
+                    has_thinking_dominant = True
+
+                lines.append(
+                    f"| `{m}` | `{cat}` | {t_rate:.1f}% ({t_cnt}/{tot}){warn} | "
+                    f"{th_rate:.1f}% ({th_cnt}/{tot}) | {out_rate:.1f}% ({out_cnt}/{tot}) | {fr_str} |"
+                )
+        lines.append("")
+
+        if has_thinking_dominant:
+            lines.append("> ⚠️ **重要注記 (SPECIFICATION_ADDENDUM_v6 §4.2)**: 思考起因（`thinking_dominant`）の打ち切りが 1 件でも存在するカテゴリのスコアは、モデル本来の能力を測定した値として扱えません。予算設定の見直しが必要です。\n")
+        elif has_any_truncation:
+            lines.append("> ℹ️ **注記**: 出力起因（`output_dominant`）の打ち切りが観測されています。これは出力そのものが上限付近に達した正当な打ち切りです。\n")
+
+        # 思考トークン統計表
+        lines.append("### 思考トークン (Thinking Tokens) 測定結果\n")
+        lines.append("| モデル | 思考トークン測定 | 中央値 (Median) | 平均値 (Mean) | 最小/最大 (Min/Max) | 測定試行数 (有効/総数) |")
+        lines.append("|:---|:---:|:---:|:---:|:---:|:---:|")
+        for m in models:
+            m_stat = truncation_metrics.get("by_model", {}).get(m, {}).get("thinking_tokens_stats", {})
+            if m_stat.get("available"):
+                lines.append(
+                    f"| `{m}` | ✅ 測定可能 | {m_stat['median']} tokens | {m_stat['mean']} tokens | "
+                    f"{m_stat['min']} / {m_stat['max']} tokens | {m_stat['count']}/{m_stat['count'] + m_stat['null_count']} |"
+                )
+            else:
+                lines.append(f"| `{m}` | ❌ null (測定不能) | - | - | - | 0/{m_stat.get('null_count', 0)} |")
+        lines.append("")
+
+    # 6. アサーション別 失敗内訳
     if assertion_failures:
-        lines.append("## 5. アサーション別 失敗内訳 (制約違反の分析)\n")
+        lines.append("## 6. アサーション別 失敗内訳 (制約違反の分析)\n")
         has_any_failure = False
         for m in models:
             m_failures = assertion_failures.get(m, {})
@@ -426,18 +601,18 @@ def generate_markdown_report(
         if not has_any_failure:
             lines.append("全試行においてアサーション失敗は検出されませんでした。\n")
 
-    # 6. 不安定ケース一覧
+    # 7. 不安定ケース一覧
     if unstable_cases:
-        lines.append("## 6. 試行間で結果が不安定なケース一覧 (要ケース精査)\n")
+        lines.append("## 7. 試行間で結果が不安定なケース一覧 (要ケース精査)\n")
         lines.append("| Case ID | Category | Model | Min Score | Max Score | 試行回数 |")
         lines.append("|:---|:---|:---|:---:|:---:|:---:|")
         for u in unstable_cases:
             lines.append(f"| `{u['case_id']}` | `{u['category']}` | `{u['model_id']}` | {u['min_score']*100:.0f}% | {u['max_score']*100:.0f}% | {u['trial_count']} |")
         lines.append("")
 
-    # 7. 未測定ケース一覧
+    # 8. 未測定ケース一覧
     if unmeasured_cases:
-        lines.append("## 7. 全試行エラーとなった未測定ケース一覧 (`unmeasured_cases`)\n")
+        lines.append("## 8. 全試行エラーとなった未測定ケース一覧 (`unmeasured_cases`)\n")
         lines.append("| Case ID | Category | Model | エラー種別 |")
         lines.append("|:---|:---|:---|:---|")
         for u in unmeasured_cases:
