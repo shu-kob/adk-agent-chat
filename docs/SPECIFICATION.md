@@ -12,6 +12,7 @@
 >    - [追補仕様 v1 (docs/SPECIFICATION_ADDENDUM_v1.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md): 測定信頼性確保・データセット拡充・トラフィックリプレイ設計
 >    - [追補仕様 v2 (docs/SPECIFICATION_ADDENDUM_v2.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v2.md): 仕様書整合性修正と構成整理規約
 >    - [追補仕様 v3 (docs/SPECIFICATION_ADDENDUM_v3.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v3.md): 実装確認事項 (ADK Runner非同期実行 & 差分指標設計意図)
+>    - [追補仕様 v4 (docs/SPECIFICATION_ADDENDUM_v4.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v4.md): 測定カバレッジとレート制限対応 (リトライ・スロットリング・共通マトリクス・失敗分布)
 
 ---
 
@@ -224,13 +225,20 @@ frontend/src/
 3. **3カテゴリ各10ケース（計30ケース）への集中**: `structured_output`, `negative_constraint`, `multi_step_reasoning` の3カテゴリ各10件を有効化し、難易度（`basic`, `intermediate`, `advanced`）を設定。他カテゴリは `enabled: false` で保持。
 4. **アサーション単位の採点 (Fine-grained Assertions)**: 各検証項目（JSON構文、キー適合、禁止文字排除等）のアサーション合否を個別記録し、ケーススコアは `passed_assertions / total_assertions` として算出。
 5. **アサーション別失敗内訳レポート**: レポート上で各モデルがどの制約で何回落ちたかを可視化。
-6. **生成パラメータの固定**: `temperature=0.0`, `seed=42`, 各ケース定義ごとの `max_output_tokens`。
-   - ※ `seed` パラメータについて: 現時点では全対象モデルが `seed` をサポートしている前提で動作します。非対応モデルを追加する際は挙動の定義（指定省略またはメタデータ記録）が必要です。
-7. **複数試行と代表値（中央値）**: 各 (case, model) に対して `EVAL_TRIALS`（既定 3 回）試行し、代表値として中央値 (Median) を採用。試行間のばらつき（min, max, stddev）および不安定ケースを自動検出。
-8. **フォールバック無効モード**: 評価実行時は `allow_fallback=False` とし、ADK 失敗時は例外として扱いスコア 0 に混ぜず `status="error"` として明示分離。
-9. **モデル事前疎通チェック (`eval/precheck.py`)**: 実行前に最小 ping リクエストでモデルの応答可能性を検証し、未解決モデルはスキップ。
-10. **集計時マージガード (`eval/guard.py`)**: `provider_route`, `instruction_hash`, `dataset_version`, `evaluator_version` のいずれかが異なるデータの単一表への統合を禁止（`MergeGuardViolationError` 送出）。
-11. **客観的レポート生成 (`eval/aggregator.py`)**: サンプル数併記 (`50.0% (1/2)`), 母数 < 5 の注意マーク `⚠️`、断定的主観文の排除。
+6. **生成パラメータの固定とモデル特性**:
+   - `temperature=0.0`, `seed=42`, 各ケース定義ごとの `max_output_tokens`。
+   - ※ `seed` パラメータについて: `seed=42` は API に確実に送信されますが、プレビューモデルや MoE アーキテクチャ等のモデル側特性により、`temperature=0.0` 指定時でも軽微な出力揺らぎが発生する場合があります。これは既知の制約とし、中央値（Median）および `unstable_cases` 検出により対処します。
+7. **レート制限リトライ & スロットリング (Phase 4)**:
+   - HTTP 429 (`RESOURCE_EXHAUSTED`) や一時的エラー（503, タイムアウト）に対し、最大 5 回の指数バックオフリトライ（`EVAL_RETRY_MAX`, `EVAL_RETRY_BASE_SEC`）を実施。400 番台の確定エラーは即時失敗。
+   - 呼び出し間隔制御 (`EVAL_REQUEST_INTERVAL_SEC` 既定 1.0 秒) によるスロットリング。
+8. **測定カバレッジ & 共通ケースマトリクス (Phase 4)**:
+   - `case_coverage`（測定成功ケース数/総ケース数）および `trial_coverage` を可視化。マトリクス全セルに `x.x% (満点 a/b, 測定 b/c)` を併記。
+   - 全モデルで測定成功したケースのみで公平比較する `common_case_matrix` を提供。
+9. **失敗分布分析 (Phase 4)**:
+   - ケース間標準偏差 (`score_stddev`)、満点率 (`perfect_case_ratio`)、0点率 (`zero_case_ratio`) を算出し、集中型失敗と分散型失敗を識別。
+10. **フォールバック無効モード**: 評価実行時は `allow_fallback=False` とし、ADK/API 失敗時は例外として扱いスコア 0 に混ぜず `status="error"` として明示分離。
+11. **モデル事前疎通チェック (`eval/precheck.py`)**: 実行前に 3 回連続 ping リクエストでモデルの応答可能性およびレート制限耐性を検証。
+12. **集計時マージガード (`eval/guard.py`)**: `provider_route`, `instruction_hash`, `dataset_version`, `evaluator_version` のいずれかが異なるデータの単一表への統合を禁止（`MergeGuardViolationError` 送出）。
 
 | カテゴリ | ケース数 | 難易度傾斜 | 評価内容・検証ロジック |
 | :--- | :---: | :---: | :--- |
@@ -247,13 +255,16 @@ frontend/src/
 - **保存成果物**:
   - `eval_raw_<timestamp>.json`: 全試行のローデータ
     - `batch_meta`: `run_id`, `started_at`, `completed_at`, `duration_sec`, `total_cost_usd`, `provider_route`, `location`, `trials_per_case`, `temperature`, `seed`, `dataset_version`, `evaluator_version`, `models`, `skipped_models`
-    - `records`: 1 試行 1 レコードの行指向フラット配列 (`run_id`, `trial_index`, `case_id`, `category`, `model_id`, `score`, `latency_ms`, `prompt_tokens`, `candidate_tokens`, `cost_usd`, `instruction_hash`, `dataset_version`, `evaluator_version`, `status`, `error_type`, `raw_output`, `reasons`, `assertions`)
+    - `coverage_metrics`: モデル・カテゴリ別のケース・試行カバレッジ
+    - `common_case_matrix`: 全モデル共通測定ケース比較表
+    - `records`: 1 試行 1 レコードの行指向フラット配列 (`run_id`, `trial_index`, `case_id`, `category`, `model_id`, `score`, `latency_ms`, `prompt_tokens`, `candidate_tokens`, `cost_usd`, `retry_count`, `instruction_hash`, `dataset_version`, `evaluator_version`, `status`, `error_type`, `raw_output`, `reasons`, `assertions`)
     - `case_summary`: (case, model) 別の中央値、最小/最大スコア、不安定判定
-    - `category_matrix`: カテゴリ別スコアマトリクス（サンプル数付き）
+    - `category_matrix`: カテゴリ別スコアマトリクス（カバレッジ・失敗分布付き）
     - `assertion_failures`: モデル・カテゴリ別のアサーション失敗内訳
     - `unstable_cases`: 試行間で結果が割れた要精査ケース一覧
-  - `eval_report_<timestamp>.md` / `eval_report_latest.md`: 自動生成マークダウンレポート（実行サマリー、マトリクス、アサーション失敗内訳、各ケース詳細）
-  - `eval_matrix_analysis.md`: モデル × カテゴリのクロス集計マトリクス & 考察レポート
+    - `unmeasured_cases`: 全試行エラーとなった未測定ケース一覧
+  - `eval_report_<timestamp>.md` / `eval_report_latest.md`: 自動生成マークダウンレポート（カバレッジ一覧、マトリクス、共通ケースマトリクス、失敗分布、アサーション失敗内訳、各ケース詳細）
+  - `eval_matrix_analysis.md`: モデル × カテゴリの客観的比較マトリクス & 差分分析レポート
 
 ---
 

@@ -38,6 +38,9 @@ from eval.aggregator import (
     detect_unstable_cases,
     compute_category_matrix,
     compute_assertion_failure_breakdown,
+    compute_coverage_metrics,
+    compute_common_case_matrix,
+    compute_truncation_metrics,
     generate_markdown_report
 )
 
@@ -71,29 +74,35 @@ def generate_with_params(
     prompt: str,
     temperature: float = 0.0,
     seed: int = 42,
-    max_output_tokens: int = 1024,
+    max_output_tokens: int = 4096,
+    thinking_budget: Optional[int] = None,
     timeout_sec: float = 30.0
-) -> Tuple[str, int, int]:
+) -> Tuple[str, int, int, Optional[str], Optional[int], Optional[Dict[str, Any]]]:
     """
     決定論的パラメータを厳格に固定して Gemini モデルを呼び出し、
-    生成テキストと消費トークン数を取得する。
+    生成テキスト、消費トークン数、停止理由、思考トークン数、および usage 生データを取得する。
     
     :param client: google.genai.Client インスタンス
     :param model: 呼び出し対象モデル名
     :param prompt: 入力プロンプト
     :param temperature: 生成温度 (決定論的評価のため 0.0 固定)
     :param seed: 乱数シード値 (42 固定)
-    :param max_output_tokens: 最大出力トークン数
+    :param max_output_tokens: 最大出力トークン数 (既定 4096)
+    :param thinking_budget: 思考予算トークン数 (None の場合はモデル既定)
     :param timeout_sec: タイムアウト秒数
-    :return: (生成テキスト, 入力トークン数, 出力トークン数)
+    :return: (生成テキスト, 入力トークン数, 出力トークン数, finish_reason, thinking_tokens, usage_raw)
     :raises TimeoutError: 指定時間内に応答が返らない場合
     """
-    config = types.GenerateContentConfig(
-        temperature=temperature,
-        seed=seed,
-        max_output_tokens=max_output_tokens,
-        system_instruction=DEFAULT_INSTRUCTION
-    )
+    config_kwargs: Dict[str, Any] = {
+        "temperature": temperature,
+        "seed": seed,
+        "max_output_tokens": max_output_tokens,
+        "system_instruction": DEFAULT_INSTRUCTION
+    }
+    if thinking_budget is not None:
+        config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
+
+    config = types.GenerateContentConfig(**config_kwargs)
 
     def _call():
         response = client.models.generate_content(
@@ -104,10 +113,38 @@ def generate_with_params(
         text = response.text if response.text else ""
         prompt_tokens = 0
         candidate_tokens = 0
+        thinking_tokens = None
+        usage_raw = None
+        finish_reason = None
+
+        # finish_reason の取得 (SDK の candidate から加工せず記録)
+        if response.candidates and len(response.candidates) > 0:
+            c = response.candidates[0]
+            if hasattr(c, "finish_reason") and c.finish_reason is not None:
+                # enum の場合は .name または 文字列表現を加工せず取得
+                finish_reason = getattr(c.finish_reason, "name", str(c.finish_reason))
+
+        # usage_metadata の取得
         if hasattr(response, "usage_metadata") and response.usage_metadata:
-            prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
-            candidate_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
-        return text, prompt_tokens, candidate_tokens
+            um = response.usage_metadata
+            prompt_tokens = getattr(um, "prompt_token_count", 0) or 0
+            candidate_tokens = getattr(um, "candidates_token_count", 0) or 0
+            # 思考トークン (thoughts_token_count) の取得
+            thinking_tokens = getattr(um, "thoughts_token_count", None)
+
+            # usage_raw として辞書化して保存
+            if hasattr(um, "model_dump"):
+                try:
+                    usage_raw = um.model_dump()
+                except Exception:
+                    usage_raw = None
+            elif hasattr(um, "to_dict"):
+                try:
+                    usage_raw = um.to_dict()
+                except Exception:
+                    usage_raw = None
+
+        return text, prompt_tokens, candidate_tokens, finish_reason, thinking_tokens, usage_raw
 
     # タイムアウト付きスレッドプール実行
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -116,6 +153,93 @@ def generate_with_params(
             return future.result(timeout=timeout_sec)
         except concurrent.futures.TimeoutError:
             raise TimeoutError(f"Generation timed out after {timeout_sec}s for model {model}")
+
+# リトライ対象エラー（429 レート制限、503 一時不可、タイムアウト、接続切断）
+RETRYABLE_ERROR_TYPES = (
+    "ResourceExhausted",
+    "RESOURCE_EXHAUSTED",
+    "ServiceUnavailable",
+    "UNAVAILABLE",
+    "TimeoutError",
+    "DeadlineExceeded",
+    "DEADLINE_EXCEEDED",
+    "ConnectionError",
+    "APIConnectionError"
+)
+
+# リトライ対象外エラー（400番台の確定エラー等）
+NON_RETRYABLE_ERROR_TYPES = (
+    "InvalidArgument",
+    "INVALID_ARGUMENT",
+    "PermissionDenied",
+    "PERMISSION_DENIED",
+    "Unauthenticated",
+    "UNAUTHENTICATED",
+    "NotFound",
+    "NOT_FOUND",
+    "ValueError"
+)
+
+def is_retryable_error(exc: Exception) -> bool:
+    """
+    発生した例外が一時的なレート制限やネットワーク障害等、リトライ対象であるかを判定する。
+    
+    :param exc: 検査対象の例外
+    :return: リトライすべき場合 True、即時失敗とすべき場合 False
+    """
+    exc_type_name = type(exc).__name__
+    exc_str = str(exc)
+
+    # 明示的な非リトライ対象の判定
+    for non_ret in NON_RETRYABLE_ERROR_TYPES:
+        if non_ret in exc_type_name or non_ret in exc_str:
+            return False
+
+    # リトライ対象の判定
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return True
+
+    for ret in RETRYABLE_ERROR_TYPES:
+        if ret in exc_type_name or ret in exc_str or "429" in exc_str or "503" in exc_str:
+            return True
+
+    return False
+
+def execute_call_with_retry(
+    call_fn: Any,
+    max_retries: Optional[int] = None,
+    base_delay_sec: Optional[float] = None,
+    backoff_factor: float = 2.0
+) -> Tuple[Any, int]:
+    """
+    指数バックオフとジッタを用いて、指定された API 呼び出し関数を実行する。
+    
+    :param call_fn: 実行する引数なし callable
+    :param max_retries: 最大リトライ回数 (環境変数 EVAL_RETRY_MAX または既定 5)
+    :param base_delay_sec: 初回待機秒数 (環境変数 EVAL_RETRY_BASE_SEC または既定 2.0)
+    :param backoff_factor: バックオフ乗数 (既定 2.0)
+    :return: (関数実行結果, 実施したリトライ回数)
+    :raises: リトライ上限超過時または非リトライ対象例外発生時
+    """
+    import random
+    if max_retries is None:
+        max_retries = int(os.getenv("EVAL_RETRY_MAX", "5"))
+    if base_delay_sec is None:
+        base_delay_sec = float(os.getenv("EVAL_RETRY_BASE_SEC", "2.0"))
+
+    retry_count = 0
+    while True:
+        try:
+            res = call_fn()
+            return res, retry_count
+        except Exception as e:
+            if not is_retryable_error(e) or retry_count >= max_retries:
+                raise e
+            
+            retry_count += 1
+            jitter = random.uniform(0.1, 0.5)
+            delay = (base_delay_sec * (backoff_factor ** (retry_count - 1))) + jitter
+            time.sleep(delay)
 
 def calculate_cost(model_name: str, prompt_tokens: int, candidate_tokens: int) -> float:
     """
@@ -176,11 +300,16 @@ def main():
     seed = 42                                            # 乱数シード固定
     instruction_hash = compute_instruction_hash(DEFAULT_INSTRUCTION)
 
+    # max_output_tokens の既定値を 4096 に引き上げ (SPECIFICATION_ADDENDUM_v6 §1.2)
+    default_max_output_tokens = int(os.getenv("EVAL_MAX_OUTPUT_TOKENS", "4096"))
+    thinking_budget_env = os.getenv("EVAL_THINKING_BUDGET")
+    thinking_budget = int(thinking_budget_env) if (thinking_budget_env is not None and thinking_budget_env.strip() != "") else None
+
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     batch_start_dt = datetime.now()
     batch_start_iso = batch_start_dt.isoformat()
 
-    print(f"\n⚙️ Parameters: Trials={trials_per_case} | Temp={temperature} | Seed={seed}")
+    print(f"\n⚙️ Parameters: Trials={trials_per_case} | Temp={temperature} | Seed={seed} | MaxOutputTokens={default_max_output_tokens} | ThinkingBudget={thinking_budget}")
     print(f"📁 Benchmark Cases: {len(BENCHMARK_CASES)} enabled cases loaded from JSON")
 
     # 4. 全ケース × 全モデル × 全試行のループ実行
@@ -196,7 +325,8 @@ def main():
             prompt = case["prompt"]
             eval_type = case["eval_type"]
             expected = case["expected"]
-            max_tokens = case.get("max_output_tokens", 1024)
+            # データセット側で個別に大きな値が指定されている場合はそれを尊重し、最低でも default_max_output_tokens を保証
+            max_tokens = max(case.get("max_output_tokens", 0), default_max_output_tokens)
 
             print(f"  [{case_idx:02d}/{len(BENCHMARK_CASES):02d}] ({category:22}) {title:30} ", end="", flush=True)
 
@@ -212,22 +342,66 @@ def main():
                 gen_config = {
                     "temperature": temperature,
                     "seed": seed,
-                    "max_output_tokens": max_tokens
+                    "max_output_tokens": max_tokens,
+                    "thinking_budget": thinking_budget
                 }
 
+                finish_reason = None
+                thinking_tokens = None
+                usage_raw = None
+                truncated = None
+                truncation_type = None
+
+                retry_cnt = 0
                 try:
-                    response_text, prompt_tokens, candidate_tokens = generate_with_params(
-                        client=client,
-                        model=model_id,
-                        prompt=prompt,
-                        temperature=temperature,
-                        seed=seed,
-                        max_output_tokens=max_tokens,
-                        timeout_sec=25.0
-                    )
+                    def _do_generate():
+                        return generate_with_params(
+                            client=client,
+                            model=model_id,
+                            prompt=prompt,
+                            temperature=temperature,
+                            seed=seed,
+                            max_output_tokens=max_tokens,
+                            thinking_budget=thinking_budget,
+                            timeout_sec=30.0
+                        )
+
+                    (response_text, prompt_tokens, candidate_tokens, finish_reason, thinking_tokens, usage_raw), retry_cnt = execute_call_with_retry(_do_generate)
                 except Exception as e:
                     error_msg = str(e)
                     error_type = type(e).__name__
+
+                # truncated & truncation_type の判定条件 (SPECIFICATION_ADDENDUM_v6 §4.2):
+                # - finish_reason がトークン上限到達 (MAX_TOKENS / MAX_OUTPUT_TOKENS / LENGTH) の場合:
+                #   truncated = True
+                #   - thinking_tokens が存在し、かつ thinking_tokens > candidate_tokens の場合:
+                #       truncation_type = "thinking_dominant" (思考トークンが可視出力を上回り、予算を圧迫して打ち切られた)
+                #   - thinking_tokens が None または thinking_tokens <= candidate_tokens の場合:
+                #       truncation_type = "output_dominant" (可視出力そのものが上限付近に達して打ち切られた)
+                # - finish_reason が STOP / SAFETY 等の場合:
+                #   truncated = False
+                #   truncation_type = None
+                # - finish_reason が取得できない (None) の場合:
+                #   truncated = None
+                #   truncation_type = "unknown"
+                if finish_reason is not None:
+                    if finish_reason in ("MAX_TOKENS", "MAX_OUTPUT_TOKENS", "LENGTH"):
+                        truncated = True
+                        if thinking_tokens is not None and thinking_tokens > candidate_tokens:
+                            truncation_type = "thinking_dominant"
+                        else:
+                            truncation_type = "output_dominant"
+                    else:
+                        truncated = False
+                        truncation_type = None
+                else:
+                    truncated = None
+                    truncation_type = "unknown"
+
+                # スロットリング (呼び出し間隔制御)
+                request_interval = float(os.getenv("EVAL_REQUEST_INTERVAL_SEC", "1.0"))
+                if request_interval > 0:
+                    time.sleep(request_interval)
 
                 latency_ms = int((time.time() - start_t) * 1000)
                 cost_usd = calculate_cost(model_id, prompt_tokens, candidate_tokens)
@@ -264,6 +438,12 @@ def main():
                     prompt_tokens=prompt_tokens,
                     candidate_tokens=candidate_tokens,
                     cost_usd=cost_usd,
+                    retry_count=retry_cnt,
+                    finish_reason=finish_reason,
+                    truncated=truncated,
+                    truncation_type=truncation_type,
+                    thinking_tokens=thinking_tokens,
+                    usage_raw=usage_raw,
                     reasons=reasons,
                     assertions=assertions
                 )
@@ -282,12 +462,31 @@ def main():
     MergeGuard.validate_mergeable(all_trial_records)
     print("  ✅ All records share strictly identical environment and versions.")
 
-    # 6. 集計計算 (中央値、カテゴリマトリクス、不安定ケース、アサーション失敗内訳)
+    # 6. 集計計算 (中央値、カバレッジ、共通マトリクス、失敗分布、不安定ケース、アサーション失敗内訳)
     categories = sorted(list(set(c["category"] for c in BENCHMARK_CASES)))
     case_summary = aggregate_trials_by_case(all_trial_records)
     unstable_cases = detect_unstable_cases(case_summary)
     category_matrix = compute_category_matrix(case_summary, categories, valid_models)
     assertion_failures = compute_assertion_failure_breakdown(all_trial_records)
+    truncation_metrics = compute_truncation_metrics(all_trial_records, valid_models)
+
+    # v4: カバレッジおよび共通ケースマトリクスの集計
+    all_cases_dict = [{"case_id": c["id"], "category": c["category"]} for c in BENCHMARK_CASES]
+    coverage_metrics = compute_coverage_metrics(case_summary, all_cases_dict, valid_models)
+    common_case_matrix, common_cases_count, excluded_cases_count = compute_common_case_matrix(
+        case_summary, all_cases_dict, valid_models
+    )
+
+    # 未測定ケース一覧の収集
+    unmeasured_cases = []
+    for (cid, mid), info in case_summary.items():
+        if info.get("median_score") is None:
+            unmeasured_cases.append({
+                "case_id": cid,
+                "category": info.get("category"),
+                "model_id": mid,
+                "error_type": info.get("error_type", "UnknownError")
+            })
 
     batch_end_dt = datetime.now()
     batch_end_iso = batch_end_dt.isoformat()
@@ -313,10 +512,16 @@ def main():
 
     # 7. レポート生成 & 保存
     report_text = generate_markdown_report(
-        batch_meta,
-        category_matrix,
-        unstable_cases,
-        assertion_failures=assertion_failures
+        batch_meta=batch_meta,
+        category_matrix=category_matrix,
+        unstable_cases=unstable_cases,
+        assertion_failures=assertion_failures,
+        coverage_metrics=coverage_metrics,
+        common_case_matrix=common_case_matrix,
+        common_cases_count=common_cases_count,
+        excluded_cases_count=excluded_cases_count,
+        unmeasured_cases=unmeasured_cases,
+        truncation_metrics=truncation_metrics
     )
 
     results_dir = os.path.join(os.path.dirname(__file__), "results")
@@ -333,11 +538,15 @@ def main():
     raw_output_path = os.path.join(results_dir, f"eval_raw_phase1_{timestamp_str}.json")
     raw_payload = {
         "batch_meta": batch_meta,
-        "records": all_trial_records,
-        "case_summary": {f"{k[0]}__{k[1]}": v for k, v in case_summary.items()},
+        "coverage_metrics": coverage_metrics,
+        "common_case_matrix": common_case_matrix,
+        "case_summary": {f"{k[0]}::{k[1]}": v for k, v in case_summary.items()},
         "category_matrix": category_matrix,
         "assertion_failures": assertion_failures,
-        "unstable_cases": unstable_cases
+        "unstable_cases": unstable_cases,
+        "unmeasured_cases": unmeasured_cases,
+        "truncation_metrics": truncation_metrics,
+        "records": all_trial_records
     }
     with open(raw_output_path, "w", encoding="utf-8") as f:
         json.dump(raw_payload, f, ensure_ascii=False, indent=2)
