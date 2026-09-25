@@ -49,7 +49,7 @@ PORT: int = int(os.getenv("PORT", "8000"))
 SHADOW_TEST_ENABLED: bool = os.getenv("SHADOW_TEST_ENABLED", "false").lower() in ("true", "1", "yes")
 
 # シャドウテストで評価する候補モデル識別子
-SHADOW_MODEL_ID: str = os.getenv("SHADOW_MODEL_ID", "gemini-2.5-flash")
+SHADOW_MODEL_ID: str = os.getenv("SHADOW_MODEL_ID", "gemini-3.8-flash")
 
 # サンプリング率 (0.0 〜 1.0, デフォルト: 1.0 = 全件)
 SHADOW_SAMPLE_RATE: float = float(os.getenv("SHADOW_SAMPLE_RATE", "1.0"))

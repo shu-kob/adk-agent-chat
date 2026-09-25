@@ -67,7 +67,7 @@ sequenceDiagram
 | 環境変数 | 型 | 既定値 | 説明 |
 | :--- | :---: | :---: | :--- |
 | `SHADOW_TEST_ENABLED` | boolean | `false` | シャドウテストの有効化フラグ (`true` / `1` で有効) |
-| `SHADOW_MODEL_ID` | string | `gemini-2.5-flash` | シャドウテスト対象の候補モデル識別子 |
+| `SHADOW_MODEL_ID` | string | `gemini-3.8-flash` | シャドウテスト対象の候補モデル識別子 |
 | `SHADOW_SAMPLE_RATE` | float | `1.0` | サンプリング率 (`0.0` 〜 `1.0`)。実トラフィックの一部のみ実行しコストを抑制 |
 | `SHADOW_TIMEOUT_SEC` | float | `30.0` | 候補モデル呼び出しのタイムアウト秒数 |
 | `SHADOW_LOG_PATH` | string | `eval/traffic/data/shadow_log.jsonl` | シャドウテスト結果ログの永続化先パス |

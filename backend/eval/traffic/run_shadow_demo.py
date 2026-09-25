@@ -31,10 +31,9 @@ SAMPLE_QUERIES = [
 
 
 async def run_experiment():
-    # 候補モデルの設定 (本番モデルと異なるモデルを選択)
+    # 候補モデルの設定: gemini-3.8-flash
     prod_model = config.GEMINI_MODEL
-    # 候補モデル: 本番が 3.7-flash なら 3.5-flash-lite、そうでなければ 3.7-flash
-    cand_model = "gemini-3.5-flash-lite" if "3.7" in prod_model else "gemini-3.7-flash"
+    cand_model = getattr(config, "SHADOW_MODEL_ID", "gemini-3.8-flash")
 
     demo_log_path = os.path.join(os.path.dirname(__file__), "data", "shadow_demo_log.jsonl")
     if os.path.exists(demo_log_path):
