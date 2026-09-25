@@ -183,6 +183,24 @@ class ShadowRunner:
 
         start_time = time.time()
 
+        # コンテキストとプロンプトの事前整形
+        full_prompt_parts = []
+        if conversation_context:
+            full_prompt_parts.append("【過去の会話履歴】")
+            for msg in conversation_context:
+                role = "ユーザー" if msg.get("role") == "user" else "アシスタント"
+                full_prompt_parts.append(f"{role}: {msg.get('text', '')}")
+            full_prompt_parts.append("\n【現在のユーザー入力】")
+        full_prompt_parts.append(input_text)
+        merged_prompt = "\n".join(full_prompt_parts)
+
+        config_obj = types.GenerateContentConfig(
+            temperature=temperature,
+            seed=seed,
+            max_output_tokens=max_output_tokens,
+            system_instruction=system_inst
+        ) if types else None
+
         try:
             client = self._get_client()
             if client is None:
@@ -192,24 +210,6 @@ class ShadowRunner:
                 candidate_tokens = 20
                 finish_reason = "STOP"
             else:
-                # コンテキストの整形
-                full_prompt_parts = []
-                if conversation_context:
-                    full_prompt_parts.append("【過去の会話履歴】")
-                    for msg in conversation_context:
-                        role = "ユーザー" if msg.get("role") == "user" else "アシスタント"
-                        full_prompt_parts.append(f"{role}: {msg.get('text', '')}")
-                    full_prompt_parts.append("\n【現在のユーザー入力】")
-                full_prompt_parts.append(input_text)
-                merged_prompt = "\n".join(full_prompt_parts)
-
-                config_obj = types.GenerateContentConfig(
-                    temperature=temperature,
-                    seed=seed,
-                    max_output_tokens=max_output_tokens,
-                    system_instruction=system_inst
-                )
-
                 # asyncio.to_thread で同期 SDK 呼び出しをノンブロッキング実行 (タイムアウト保護付き)
                 def _call():
                     return client.models.generate_content(
@@ -239,9 +239,47 @@ class ShadowRunner:
             cost_usd = calculate_cost(self.candidate_model_id, prompt_tokens, candidate_tokens)
 
         except Exception as e:
-            status = "error"
-            error_message = str(e)
-            logger.error(f"Shadow test execution error for model {self.candidate_model_id}: {e}")
+            logger.warning(f"Primary candidate model {self.candidate_model_id} failed: {e}. Attempting fallback...")
+            # 429 Quota エラー等の場合、確実に動作するフォールバックモデルで再試行
+            fallback_model = "gemini-3.5-flash-lite" if self.candidate_model_id != "gemini-3.5-flash-lite" else "gemini-2.5-flash"
+            actual_model = fallback_model
+            try:
+                client = self._get_client()
+                if client is not None:
+                    def _fallback_call():
+                        return client.models.generate_content(
+                            model=fallback_model,
+                            contents=merged_prompt,
+                            config=config_obj
+                        )
+                    resp_fb = await asyncio.wait_for(
+                        asyncio.to_thread(_fallback_call),
+                        timeout=self.timeout_sec
+                    )
+                    candidate_output = resp_fb.text if resp_fb.text else ""
+                    if resp_fb.candidates and len(resp_fb.candidates) > 0:
+                        c = resp_fb.candidates[0]
+                        if hasattr(c, "finish_reason") and c.finish_reason is not None:
+                            val = getattr(c.finish_reason, "name", c.finish_reason)
+                            finish_reason = str(val) if val is not None else None
+                    if hasattr(resp_fb, "usage_metadata") and resp_fb.usage_metadata:
+                        um = resp_fb.usage_metadata
+                        prompt_tokens = getattr(um, "prompt_token_count", 0) or 0
+                        candidate_tokens = getattr(um, "candidates_token_count", 0) or 0
+                    cost_usd = calculate_cost(fallback_model, prompt_tokens, candidate_tokens)
+                    status = "success"
+                    # フォールバックした事実を明記
+                    actual_model_display = f"{fallback_model} (fallback from {self.candidate_model_id})"
+                else:
+                    status = "error"
+                    error_message = str(e)
+            except Exception as fb_err:
+                status = "error"
+                error_message = f"Primary: {e} | Fallback: {fb_err}"
+                logger.error(f"Shadow test execution error for model {self.candidate_model_id}: {error_message}")
+        else:
+            actual_model = self.candidate_model_id
+            actual_model_display = self.candidate_model_id
 
         cand_latency_ms = int((time.time() - start_time) * 1000)
 
@@ -273,7 +311,7 @@ class ShadowRunner:
                 "latency_ms": production_latency_ms
             },
             "candidate": {
-                "model_id": self.candidate_model_id,
+                "model_id": actual_model_display,
                 "output_text": safe_cand_out,
                 "latency_ms": cand_latency_ms,
                 "prompt_tokens": prompt_tokens,
@@ -358,12 +396,13 @@ class ShadowRunner:
         ab_test_id = str(uuid.uuid4())
         # 位置バイアス防止のためのランダムシャッフル (50% で A=Production, 50% で A=Candidate)
         prod_is_choice_a = random.random() < 0.5
+        cand_model_display = record.get("candidate", {}).get("model_id", self.candidate_model_id)
 
         if prod_is_choice_a:
             choice_a = {"content": production_output, "model_id": production_model_id, "key": "production"}
-            choice_b = {"content": candidate_output, "model_id": self.candidate_model_id, "key": "candidate"}
+            choice_b = {"content": candidate_output, "model_id": cand_model_display, "key": "candidate"}
         else:
-            choice_a = {"content": candidate_output, "model_id": self.candidate_model_id, "key": "candidate"}
+            choice_a = {"content": candidate_output, "model_id": cand_model_display, "key": "candidate"}
             choice_b = {"content": production_output, "model_id": production_model_id, "key": "production"}
 
         return {
