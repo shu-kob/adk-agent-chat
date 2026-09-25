@@ -1,6 +1,6 @@
-# 👥 Shadow-testing New Models (Chapter 10.5 実装仕様)
+# 👥 Shadow-testing New Models 実装仕様
 
-本書籍『Building Reliable AI Systems』Chapter 10.5「Shadow-testing new models」に基づき、本番対話 API（`/api/chat`）に対する**オンライン・シャドウテスト（Shadow Testing）**機能を実装しました。
+本番対話 API（`/api/chat`）に対する**オンライン・シャドウテスト（Shadow Testing）**機能を実装しました。
 
 ---
 
@@ -8,7 +8,7 @@
 
 新モデルの導入やプロンプト変更を安全に行うため、本番ユーザー体験（レイテンシ・正常性）を一切阻害せずに、本番トラフィックを裏で並行して新候補モデル（Candidate Model）へ非同期送信（ミラーリング）し、実環境下での性能・品質・コスト・レイテンシを比較評価します。
 
-### 書籍で提示された基本パターン
+### シャドウテストの基本パターン
 ```python
 async def handle_query_with_shadow(question):
     # 1. 本番モデルで同期的に応答を生成し、即座に返却 (ユーザー体験への影響ゼロ)
@@ -42,7 +42,7 @@ sequenceDiagram
     participant API as FastAPI (/api/chat)
     participant Agent as Production Agent (ADK / Gemini)
     participant Store as TrafficStore (実トラフィックログ)
-    participant Shadow as ShadowRunner (Chapter 10.5)
+    participant Shadow as ShadowRunner
     participant Candidate as Candidate Model (Gemini 新モデル)
 
     User->>API: POST /api/chat (prompt, session_id)
@@ -73,7 +73,7 @@ sequenceDiagram
 | `SHADOW_LOG_PATH` | string | `eval/traffic/data/shadow_log.jsonl` | シャドウテスト結果ログの永続化先パス |
 
 > [!TIP]
-> **コスト配慮 (Chapter 10.5 Note)**: シャドウテストはリクエストごとに 2 つのモデルを実行するため、推論コストが増加します。本番環境では `SHADOW_SAMPLE_RATE=0.1`（10% サンプリング）や特定時間窓での運用が推奨されます。
+> **コスト配慮**: シャドウテストはリクエストごとに 2 つのモデルを実行するため、推論コストが増加します。本番環境では `SHADOW_SAMPLE_RATE=0.1`（10% サンプリング）や特定時間窓での運用が推奨されます。
 
 ---
 
@@ -152,7 +152,7 @@ sequenceDiagram
 
 ## 7. Gemini Batch API (50% OFF) による FinOps 最適化
 
-書籍 Chapter 10.5 の「シャドウテストによるコスト倍増問題」を解決するため、Google Cloud の **Gemini Batch API（通常の 50% 割引・半額）** を組み合わせたハイブリッド運用を実現しました：
+シャドウテストによる「推論コスト倍増問題」を解決するため、Google Cloud の **Gemini Batch API（通常の 50% 割引・半額）** を組み合わせたハイブリッド運用を実現しました：
 
 1. **リアルタイム A/B テスト (10% 〜 20%)**:
    - 画面上でユーザー体験とフィードバック（Human Preference）を収集。

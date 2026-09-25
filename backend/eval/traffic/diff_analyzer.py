@@ -302,7 +302,7 @@ def generate_shadow_diff_report(metrics: Dict[str, Any]) -> str:
     :return: 完成した Markdown レポートテキスト
     """
     lines = []
-    lines.append("# 👥 Shadow Testing Evaluation Report (Chapter 10.5)\n")
+    lines.append("# 👥 Shadow Testing Evaluation Report\n")
 
     total = metrics.get("total_records", 0)
     success = metrics.get("success_count", 0)
@@ -339,7 +339,7 @@ def generate_shadow_diff_report(metrics: Dict[str, Any]) -> str:
     lat_sign = "+" if lat_diff >= 0 else ""
     lines.append(f"| **平均レイテンシ** | `{prod_lat:.1f}` ms | `{cand_lat:.1f}` ms | `{lat_sign}{lat_diff:.1f}` ms |")
 
-    lines.append("\n> 💡 **Shadow Testing 運用留意点 (Chapter 10.5)**:")
+    lines.append("\n> 💡 **Shadow Testing 運用留意点**:")
     lines.append("> - シャドウテストはユーザー応答体験（レイテンシ・正常性）を阻害せず、裏で並行実行・検証する手法です。")
     lines.append("> - サンプリング率 (`SHADOW_SAMPLE_RATE`) を用いて、検証に必要な代表サンプル数を満たしつつ追加コストを抑制してください。\n")
 

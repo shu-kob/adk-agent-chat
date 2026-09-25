@@ -133,7 +133,7 @@ async def chat_endpoint(request: ChatRequest):
     3. 直前までの会話コンテキスト履歴を取得
     4. agent_manager.generate_response を呼び出して AI 応答を取得
     5. 会話履歴の更新およびトラフィックログへの自動蓄積 (Phase 3)
-    6. オンライン・シャドウテストの非同期キック (Chapter 10.5)
+    6. オンライン・シャドウテストの非同期キック
     7. ChatResponse 形式で即時返却
     """
     if not request.message or not request.message.strip():
@@ -215,7 +215,7 @@ async def chat_endpoint(request: ChatRequest):
         except Exception:
             pass
     else:
-        # A/B テスト非対象時は完全非同期でシャドウテストを実行 (Chapter 10.5)
+        # A/B テスト非対象時は完全非同期でシャドウテストを実行
         try:
             global_shadow_runner.schedule_shadow(
                 session_id=session_id,

@@ -47,7 +47,7 @@ async def run_experiment():
     )
 
     print("=" * 70)
-    print("🚀 Shadow Testing 実験開始 (Chapter 10.5)")
+    print("🚀 Shadow Testing 実験開始")
     print(f"・本番モデル (Production) : {prod_model}")
     print(f"・候補モデル (Candidate)  : {cand_model}")
     print(f"・サンプルクエリ件数       : {len(SAMPLE_QUERIES)} 件")
@@ -71,7 +71,7 @@ async def run_experiment():
         print(f"  ✅ 本番応答完了 ({prod_latency_ms} ms)")
         print(f"     本番応答抜粋: {prod_reply[:60].replace(chr(10), ' ')}...")
 
-        # 2. 候補モデルのシャドウテストを非同期スケジュール (Chapter 10.5)
+        # 2. 候補モデルのシャドウテストを非同期スケジュール
         print(f"  👥 候補モデル ({cand_model}) へシャドウテストを非同期キック...")
         task = runner.schedule_shadow(
             session_id=session_id,

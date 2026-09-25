@@ -2,8 +2,7 @@
 Gemini Batch API (50% OFF) 連携・コスト最適化モジュール (backend/eval/traffic/batch.py)
 
 【役割】
-- 書籍『Building Reliable AI Systems』Chapter 10.5「シャドウテストによるコスト2倍問題」に対する
-  Google Cloud ならではの FinOps 解決策。
+- シャドウテストによる推論コスト増加に対する Google Cloud ならではの FinOps 解決策。
 - 蓄積された本番トラフィックログ (traffic_log.jsonl) からクエリを抽出し、
   通常料金の【50% オフ (半額)】で利用できる Gemini Batch API (Vertex AI / Google GenAI SDK) 向けの
   リクエストファイルを自動生成・投入する。
@@ -192,8 +191,8 @@ class GeminiBatchManager:
         lines = []
         lines.append("# 💰 Gemini Batch API (50% OFF) Shadow Testing FinOps Report\n")
         lines.append("## 1. 概要")
-        lines.append("- 書籍『Building Reliable AI Systems』第10章では「シャドウテストは推論コストが2倍になる」点が課題として挙げられています。")
-        lines.append("- **Google Cloud / Gemini Batch API** を活用することで、本番実トラフィックのオフライン再評価を【50% OFF（半額）】で実行できます。\n")
+        lines.append("- シャドウテスト運用における「推論コストの増加」を解決するため、")
+        lines.append("- **Google Cloud / Gemini Batch API** を活用して本番実トラフィックのオフライン再評価を【50% OFF（半額）】で実行します。\n")
 
         lines.append("## 2. コスト比較シミュレーション")
         lines.append(f"- **評価対象モデル**: `{self.candidate_model_id}`")

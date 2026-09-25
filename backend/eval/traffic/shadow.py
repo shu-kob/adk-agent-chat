@@ -2,7 +2,6 @@
 オンライン・シャドウテスト実行モジュール (backend/eval/traffic/shadow.py)
 
 【役割】
-- 書籍『Building Reliable AI Systems』Chapter 10.5「Shadow-testing new models」に基づく実装。
 - 本番対話 API (/api/chat) へのライブリクエストに対して、ユーザー応答の遅延や体験に影響を与えることなく
   非同期 (asyncio.create_task) で候補モデル (Candidate Model) に同一入力を投げて並行評価する。
 - サンプリング率 (SHADOW_SAMPLE_RATE) により評価コストを制御可能。

@@ -1,7 +1,6 @@
 """
 Shadow Testing ユニットテスト (backend/tests/test_traffic_shadow.py)
 
-書籍『Building Reliable AI Systems』Chapter 10.5「Shadow-testing new models」に基づく
 オンライン・シャドウテスト機能の単体テスト。
 """
 
@@ -232,7 +231,7 @@ def test_shadow_diff_metrics_and_report():
     assert metrics["avg_candidate_latency_ms"] == 275.0
 
     report = generate_shadow_diff_report(metrics)
-    assert "# 👥 Shadow Testing Evaluation Report (Chapter 10.5)" in report
+    assert "# 👥 Shadow Testing Evaluation Report" in report
     assert "gemini-3.5-flash-lite" in report
     assert "gemini-3.7-flash" in report
     assert "50.0%" in report
