@@ -41,3 +41,24 @@ HOST: str = os.getenv("HOST", "0.0.0.0")
 
 # FastAPI サーバーのバインドポート番号 (デフォルト: 8000)
 PORT: int = int(os.getenv("PORT", "8000"))
+
+# ==============================================================================
+# Shadow Testing 設定 (本番トラフィックの非同期並行評価)
+# ==============================================================================
+# シャドウテストの有効化フラグ
+SHADOW_TEST_ENABLED: bool = os.getenv("SHADOW_TEST_ENABLED", "false").lower() in ("true", "1", "yes")
+
+# シャドウテストで評価する候補モデル識別子
+SHADOW_MODEL_ID: str = os.getenv("SHADOW_MODEL_ID", "gemini-2.5-flash")
+
+# サンプリング率 (0.0 〜 1.0, デフォルト: 1.0 = 全件)
+SHADOW_SAMPLE_RATE: float = float(os.getenv("SHADOW_SAMPLE_RATE", "1.0"))
+
+# シャドウ推論のタイムアウト秒数
+SHADOW_TIMEOUT_SEC: float = float(os.getenv("SHADOW_TIMEOUT_SEC", "30.0"))
+
+# シャドウテストログの出力先 JSONL パス
+SHADOW_LOG_PATH: str = os.getenv(
+    "SHADOW_LOG_PATH",
+    os.path.join(os.path.dirname(__file__), "eval", "traffic", "data", "shadow_log.jsonl")
+)

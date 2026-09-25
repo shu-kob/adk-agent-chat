@@ -103,6 +103,8 @@ async def get_config():
 
 import time
 from eval.traffic.store import global_traffic_store
+from eval.traffic.shadow import global_shadow_runner
+from eval.traffic.diff_analyzer import compute_shadow_diff_metrics, generate_shadow_diff_report
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
@@ -115,7 +117,8 @@ async def chat_endpoint(request: ChatRequest):
     3. 直前までの会話コンテキスト履歴を取得
     4. agent_manager.generate_response を呼び出して AI 応答を取得
     5. 会話履歴の更新およびトラフィックログへの自動蓄積 (Phase 3)
-    6. ChatResponse 形式で返却
+    6. オンライン・シャドウテストの非同期キック (Chapter 10.5)
+    7. ChatResponse 形式で即時返却
     """
     if not request.message or not request.message.strip():
         raise HTTPException(
@@ -162,8 +165,24 @@ async def chat_endpoint(request: ChatRequest):
             generation_config={"temperature": 0.0},
             latency_ms=latency_ms
         )
-    except Exception as e:
+    except Exception:
         # ログ保存失敗がチャット応答自体をブロックしないよう例外ハンドリング
+        pass
+
+    # 5. オンライン・シャドウテストの非同期実行 (Chapter 10.5: Shadow-testing new models)
+    try:
+        global_shadow_runner.schedule_shadow(
+            session_id=session_id,
+            input_text=clean_message,
+            conversation_context=context,
+            production_output=reply,
+            production_model_id=config.GEMINI_MODEL,
+            production_latency_ms=latency_ms,
+            instruction=instruction,
+            generation_config={"temperature": 0.0}
+        )
+    except Exception:
+        # シャドウスケジュール失敗がチャット応答自体をブロックしないよう例外ハンドリング
         pass
 
     return ChatResponse(
@@ -171,6 +190,34 @@ async def chat_endpoint(request: ChatRequest):
         session_id=session_id,
         model=config.GEMINI_MODEL
     )
+
+
+@app.get("/api/eval/shadow/status")
+async def get_shadow_status():
+    """
+    現在のシャドウテスト実行設定および稼働状態を返却するエンドポイント
+    """
+    return {
+        "enabled": global_shadow_runner.enabled,
+        "candidate_model_id": global_shadow_runner.candidate_model_id,
+        "sample_rate": global_shadow_runner.sample_rate,
+        "timeout_sec": global_shadow_runner.timeout_sec,
+        "log_file_path": global_shadow_runner.log_file_path
+    }
+
+
+@app.get("/api/eval/shadow/report")
+async def get_shadow_report(limit: Optional[int] = 100):
+    """
+    蓄積されたシャドウテストログの集計メトリクスおよび Markdown レポートを返却するエンドポイント
+    """
+    records = global_shadow_runner.load_shadow_records(limit=limit)
+    metrics = compute_shadow_diff_metrics(records)
+    report_md = generate_shadow_diff_report(metrics)
+    return {
+        "metrics": metrics,
+        "report_markdown": report_md
+    }
 
 @app.post("/api/sessions/reset", response_model=ResetSessionResponse)
 async def reset_session_endpoint(request: ResetSessionRequest):

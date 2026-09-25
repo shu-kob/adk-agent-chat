@@ -195,3 +195,152 @@ def generate_replay_diff_report(job_summary: Dict[str, Any], metrics: Dict[str, 
     lines.append("> - **CodeBlock混入率**: 出力に ``` のバッククォートが含まれている割合\n")
 
     return "\n".join(lines)
+
+
+def compute_shadow_diff_metrics(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    オンライン・シャドウテストのログレコード一覧から、
+    本番モデル vs 候補モデルの比較差分メトリクスを集計する。
+    
+    :param records: ShadowRunner.load_shadow_records() 等で取得したレコードリスト
+    :return: シャドウ比較メトリクス辞書
+    """
+    if not records:
+        return {
+            "total_records": 0,
+            "success_count": 0,
+            "error_count": 0,
+            "success_ratio": 0.0
+        }
+
+    total_records = len(records)
+    success_count = 0
+    error_count = 0
+
+    prod_model = records[0].get("production", {}).get("model_id", "unknown")
+    cand_model = records[0].get("candidate", {}).get("model_id", "unknown")
+
+    exact_matches = 0
+    similarities = []
+    prod_latencies = []
+    cand_latencies = []
+    prod_char_lens = []
+    cand_char_lens = []
+    total_prompt_tokens = 0
+    total_candidate_tokens = 0
+    total_cost_usd = 0.0
+
+    for r in records:
+        prod = r.get("production", {})
+        cand = r.get("candidate", {})
+
+        if cand.get("status") == "error":
+            error_count += 1
+            continue
+
+        success_count += 1
+        prod_out = prod.get("output_text", "")
+        cand_out = cand.get("output_text", "")
+
+        # 類似度
+        if prod_out.strip() == cand_out.strip():
+            exact_matches += 1
+        sim = calculate_levenshtein_similarity(prod_out.strip(), cand_out.strip())
+        similarities.append(sim)
+
+        # 文字長
+        prod_char_lens.append(len(prod_out))
+        cand_char_lens.append(len(cand_out))
+
+        # レイテンシ
+        prod_lat = prod.get("latency_ms", 0)
+        cand_lat = cand.get("latency_ms", 0)
+        if prod_lat > 0:
+            prod_latencies.append(prod_lat)
+        if cand_lat > 0:
+            cand_latencies.append(cand_lat)
+
+        # トークン & コスト
+        total_prompt_tokens += cand.get("prompt_tokens", 0)
+        total_candidate_tokens += cand.get("candidate_tokens", 0)
+        total_cost_usd += cand.get("cost_usd", 0.0)
+
+    success_ratio = round(success_count / total_records, 3) if total_records > 0 else 0.0
+    exact_match_ratio = round(exact_matches / success_count, 3) if success_count > 0 else 0.0
+    avg_similarity = round(statistics.mean(similarities), 3) if similarities else 0.0
+
+    avg_prod_lat = round(statistics.mean(prod_latencies), 1) if prod_latencies else 0.0
+    avg_cand_lat = round(statistics.mean(cand_latencies), 1) if cand_latencies else 0.0
+    avg_prod_len = round(statistics.mean(prod_char_lens), 1) if prod_char_lens else 0.0
+    avg_cand_len = round(statistics.mean(cand_char_lens), 1) if cand_char_lens else 0.0
+
+    return {
+        "total_records": total_records,
+        "success_count": success_count,
+        "error_count": error_count,
+        "success_ratio": success_ratio,
+        "production_model": prod_model,
+        "candidate_model": cand_model,
+        "exact_match_count": exact_matches,
+        "exact_match_ratio": exact_match_ratio,
+        "avg_similarity": avg_similarity,
+        "avg_production_latency_ms": avg_prod_lat,
+        "avg_candidate_latency_ms": avg_cand_lat,
+        "avg_production_char_length": avg_prod_len,
+        "avg_candidate_char_length": avg_cand_len,
+        "total_candidate_prompt_tokens": total_prompt_tokens,
+        "total_candidate_tokens": total_candidate_tokens,
+        "total_candidate_cost_usd": round(total_cost_usd, 6)
+    }
+
+
+def generate_shadow_diff_report(metrics: Dict[str, Any]) -> str:
+    """
+    シャドウテスト比較メトリクスを Markdown レポートとしてフォーマット出力する。
+    
+    :param metrics: compute_shadow_diff_metrics の集計結果
+    :return: 完成した Markdown レポートテキスト
+    """
+    lines = []
+    lines.append("# 👥 Shadow Testing Evaluation Report (Chapter 10.5)\n")
+
+    total = metrics.get("total_records", 0)
+    success = metrics.get("success_count", 0)
+    error = metrics.get("error_count", 0)
+    prod_m = metrics.get("production_model", "unknown")
+    cand_m = metrics.get("candidate_model", "unknown")
+
+    lines.append("## 1. シャドウテスト実行サマリ\n")
+    lines.append(f"- **総リクエスト件数**: `{total}` 件")
+    lines.append(f"- **候補モデル実行成功率**: `{metrics.get('success_ratio', 0.0)*100:.1f}%` ({success} 成功 / {error} エラー)")
+    lines.append(f"- **本番モデル (`production`)**: `{prod_m}`")
+    lines.append(f"- **候補モデル (`candidate`)**: `{cand_m}`")
+    lines.append(f"- **候補モデル追加コスト**: `${metrics.get('total_candidate_cost_usd', 0.0):.6f}`")
+    lines.append(f"- **候補モデル消費トークン**: 入力 `{metrics.get('total_candidate_prompt_tokens', 0)}` / 出力 `{metrics.get('total_candidate_tokens', 0)}`\n")
+
+    lines.append("## 2. 本番 vs 候補 比較メトリクス\n")
+    lines.append("| 比較指標 | 本番モデル | 候補モデル (Shadow) | 差異 / 判定 |")
+    lines.append("|:---|:---:|:---:|:---:|")
+
+    exact_ratio = metrics.get("exact_match_ratio", 0.0) * 100
+    avg_sim = metrics.get("avg_similarity", 0.0) * 100
+    lines.append(f"| **完全一致率** | 基準 (100%) | `{exact_ratio:.1f}%` ({metrics.get('exact_match_count', 0)}/{success}) | 出力の一致頻度 |")
+    lines.append(f"| **平均出力類似度** | 基準 (1.000) | `{avg_sim:.1f}%` | レーベンシュタイン距離基準 |")
+
+    prod_len = metrics.get("avg_production_char_length", 0.0)
+    cand_len = metrics.get("avg_candidate_char_length", 0.0)
+    len_diff = cand_len - prod_len
+    len_sign = "+" if len_diff >= 0 else ""
+    lines.append(f"| **平均出力文字数** | `{prod_len:.1f}` 文字 | `{cand_len:.1f}` 文字 | `{len_sign}{len_diff:.1f}` 文字 |")
+
+    prod_lat = metrics.get("avg_production_latency_ms", 0.0)
+    cand_lat = metrics.get("avg_candidate_latency_ms", 0.0)
+    lat_diff = cand_lat - prod_lat
+    lat_sign = "+" if lat_diff >= 0 else ""
+    lines.append(f"| **平均レイテンシ** | `{prod_lat:.1f}` ms | `{cand_lat:.1f}` ms | `{lat_sign}{lat_diff:.1f}` ms |")
+
+    lines.append("\n> 💡 **Shadow Testing 運用留意点 (Chapter 10.5)**:")
+    lines.append("> - シャドウテストはユーザー応答体験（レイテンシ・正常性）を阻害せず、裏で並行実行・検証する手法です。")
+    lines.append("> - サンプリング率 (`SHADOW_SAMPLE_RATE`) を用いて、検証に必要な代表サンプル数を満たしつつ追加コストを抑制してください。\n")
+
+    return "\n".join(lines)
