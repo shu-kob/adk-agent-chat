@@ -317,10 +317,160 @@ class ShadowRunner:
                     except json.JSONDecodeError:
                         continue
 
-        if limit and limit > 0:
-            records = records[-limit:]
-
         return records
+
+    async def run_blind_ab_test(
+        self,
+        session_id: str,
+        input_text: str,
+        conversation_context: List[Dict[str, str]],
+        production_output: str,
+        production_model_id: str,
+        production_latency_ms: int,
+        instruction: Optional[str] = None,
+        generation_config: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Side-by-Side 比較用のブラインド A/B テストデータを生成する。
+        - 候補モデルを非同期実行して応答を取得。
+        - 位置バイアス（Aを選びがち）を完全に排除するため、50%の確率で A/B の配置をランダムシャッフル。
+        - ユーザー投票完了後に正解モデルを開示できるよう reveal_info を保持。
+        """
+        # 候補モデルを実行（シャドウログにも記録）
+        record = await self.execute_shadow(
+            session_id=session_id,
+            input_text=input_text,
+            conversation_context=conversation_context,
+            production_output=production_output,
+            production_model_id=production_model_id,
+            production_latency_ms=production_latency_ms,
+            instruction=instruction,
+            generation_config=generation_config
+        )
+
+        candidate_output = record.get("candidate", {}).get("output_text", "")
+        cand_status = record.get("candidate", {}).get("status", "success")
+
+        # 候補モデルでエラーが発生した場合は A/B テスト不可
+        if cand_status != "success" or not candidate_output:
+            return None
+
+        ab_test_id = str(uuid.uuid4())
+        # 位置バイアス防止のためのランダムシャッフル (50% で A=Production, 50% で A=Candidate)
+        prod_is_choice_a = random.random() < 0.5
+
+        if prod_is_choice_a:
+            choice_a = {"content": production_output, "model_id": production_model_id, "key": "production"}
+            choice_b = {"content": candidate_output, "model_id": self.candidate_model_id, "key": "candidate"}
+        else:
+            choice_a = {"content": candidate_output, "model_id": self.candidate_model_id, "key": "candidate"}
+            choice_b = {"content": production_output, "model_id": production_model_id, "key": "production"}
+
+        return {
+            "ab_test_id": ab_test_id,
+            "session_id": session_id,
+            "input_text": input_text,
+            "choice_a": choice_a["content"],
+            "choice_b": choice_b["content"],
+            # クライアントへの開示用マッピング（投票完了後に表示）
+            "reveal_info": {
+                "A": choice_a["model_id"],
+                "B": choice_b["model_id"]
+            },
+            # 内部判定用（どのキーが選ばれたかの検証）
+            "mapping": {
+                "A": choice_a["key"],
+                "B": choice_b["key"]
+            }
+        }
+
+    def record_feedback(
+        self,
+        ab_test_id: str,
+        session_id: str,
+        selected_choice: str,  # 'A', 'B', 'tie'
+        mapping: Dict[str, str],
+        user_comment: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        ユーザーからの Side-by-Side 投票フィードバックを永続化する。
+        """
+        feedback_log_path = os.path.join(
+            os.path.dirname(self.log_file_path), "feedback_log.jsonl"
+        )
+        winner_key = "tie"
+        if selected_choice in ("A", "B"):
+            winner_key = mapping.get(selected_choice, "unknown")
+
+        feedback_record = {
+            "feedback_id": str(uuid.uuid4()),
+            "ab_test_id": ab_test_id,
+            "session_id": session_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "selected_choice": selected_choice,
+            "winner": winner_key,  # 'production' or 'candidate' or 'tie'
+            "mapping": mapping,
+            "user_comment": user_comment
+        }
+
+        line = json.dumps(feedback_record, ensure_ascii=False) + "\n"
+        with self._lock:
+            with open(feedback_log_path, "a", encoding="utf-8") as f:
+                f.write(line)
+
+        return feedback_record
+
+    def get_feedback_summary(self) -> Dict[str, Any]:
+        """
+        これまでに集まったユーザー投票（A/Bテスト勝率）を集計する。
+        """
+        feedback_log_path = os.path.join(
+            os.path.dirname(self.log_file_path), "feedback_log.jsonl"
+        )
+        if not os.path.exists(feedback_log_path):
+            return {
+                "total_votes": 0,
+                "production_wins": 0,
+                "candidate_wins": 0,
+                "ties": 0,
+                "candidate_win_rate": 0.0
+            }
+
+        total = 0
+        prod_wins = 0
+        cand_wins = 0
+        ties = 0
+
+        with self._lock:
+            with open(feedback_log_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        fb = json.loads(line)
+                        total += 1
+                        winner = fb.get("winner")
+                        if winner == "production":
+                            prod_wins += 1
+                        elif winner == "candidate":
+                            cand_wins += 1
+                        elif winner == "tie":
+                            ties += 1
+                    except json.JSONDecodeError:
+                        continue
+
+        cand_win_rate = round(cand_wins / total, 3) if total > 0 else 0.0
+
+        return {
+            "total_votes": total,
+            "production_wins": prod_wins,
+            "candidate_wins": cand_wins,
+            "ties": ties,
+            "candidate_win_rate": cand_win_rate,
+            "production_model": config.GEMINI_MODEL,
+            "candidate_model": self.candidate_model_id
+        }
 
 
 # アプリケーション全体で共有されるシングルトンインスタンス

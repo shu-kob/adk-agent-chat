@@ -256,3 +256,65 @@ def test_fastapi_shadow_endpoints():
     data_report = res_report.json()
     assert "metrics" in data_report
     assert "report_markdown" in data_report
+
+    # 3. /api/eval/feedback/summary
+    res_summary = client.get("/api/eval/feedback/summary")
+    assert res_summary.status_code == 200
+    assert "total_votes" in res_summary.json()
+
+    # 4. /api/eval/batch/finops (Batch API 50% OFF report)
+    res_batch = client.get("/api/eval/batch/finops")
+    assert res_batch.status_code == 200
+    batch_data = res_batch.json()
+    assert "savings" in batch_data
+    assert batch_data["savings"]["discount_percentage"] == "50.0%"
+    assert "report_markdown" in batch_data
+
+
+@pytest.mark.anyio
+async def test_blind_ab_test_and_feedback_cycle(temp_shadow_log):
+    """Side-by-Side ブラインド A/B テスト生成と投票フィードバック蓄積の検証"""
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = "Candidate response for A/B"
+    mock_resp.candidates = [MagicMock(finish_reason="STOP")]
+    mock_resp.usage_metadata.prompt_token_count = 50
+    mock_resp.usage_metadata.candidates_token_count = 30
+    mock_client.models.generate_content.return_value = mock_resp
+
+    runner = ShadowRunner(
+        enabled=True,
+        candidate_model_id="gemini-3.8-flash",
+        sample_rate=1.0,
+        log_file_path=temp_shadow_log,
+        client=mock_client
+    )
+
+    ab_payload = await runner.run_blind_ab_test(
+        session_id="session-ab-test",
+        input_text="A/B question",
+        conversation_context=[],
+        production_output="Production response for A/B",
+        production_model_id="gemini-3.7-flash",
+        production_latency_ms=300
+    )
+
+    assert ab_payload is not None
+    assert "ab_test_id" in ab_payload
+    assert "choice_a" in ab_payload
+    assert "choice_b" in ab_payload
+    assert "mapping" in ab_payload
+    assert "reveal_info" in ab_payload
+
+    # ユーザー投票の送信
+    record = runner.record_feedback(
+        ab_test_id=ab_payload["ab_test_id"],
+        session_id="session-ab-test",
+        selected_choice="A",
+        mapping=ab_payload["mapping"]
+    )
+    assert record["winner"] in ("production", "candidate")
+
+    # サマリの取得
+    summary = runner.get_feedback_summary()
+    assert summary["total_votes"] >= 1

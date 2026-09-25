@@ -8,7 +8,8 @@ FastAPI バックエンド API エントリーポイント (backend/main.py)
 """
 
 import uuid
-from typing import Optional
+import random
+from typing import Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -44,10 +45,12 @@ class ChatRequest(BaseModel):
     - message: ユーザーからの入力テキスト (必須)
     - session_id: 会話履歴を保持・識別するセッションID (省略時は新規UUID発行)
     - user_id: ユーザー識別子 (デフォルト: 'default_user')
+    - ab_test_mode: 'always' (常時A/Bテスト), 'auto' (時々A/Bテスト), 'off' (通常チャット)
     """
     message: str = Field(..., description="ユーザーからの入力プロンプト/メッセージ", json_schema_extra={"example": "こんにちは！何ができますか？"})
     session_id: Optional[str] = Field(default=None, description="会話メモリ用のユニークなセッションID")
     user_id: Optional[str] = Field(default="default_user", description="ユーザー識別子")
+    ab_test_mode: Optional[str] = Field(default="auto", description="A/Bテストの表示モード ('always', 'auto', 'off')")
 
 class ChatResponse(BaseModel):
     """
@@ -55,10 +58,22 @@ class ChatResponse(BaseModel):
     - reply: AI アシスタントからの返答テキスト
     - session_id: 使用されたセッションID
     - model: 応答生成に使用されたモデル名
+    - ab_test: Side-by-Side 比較用データ (A/Bテスト発生時のみ付与)
     """
     reply: str
     session_id: str
     model: str
+    ab_test: Optional[Dict[str, Any]] = None
+
+class FeedbackRequest(BaseModel):
+    """
+    Side-by-Side A/Bテスト ユーザー投票リクエストモデル
+    """
+    ab_test_id: str
+    session_id: str
+    selected_choice: str = Field(..., description="'A', 'B', または 'tie'")
+    mapping: Dict[str, str] = Field(..., description="A/Bとモデルキーの対応辞書")
+    user_comment: Optional[str] = None
 
 class ResetSessionRequest(BaseModel):
     """
@@ -105,6 +120,7 @@ import time
 from eval.traffic.store import global_traffic_store
 from eval.traffic.shadow import global_shadow_runner
 from eval.traffic.diff_analyzer import compute_shadow_diff_metrics, generate_shadow_diff_report
+from eval.traffic.batch import GeminiBatchManager
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
@@ -169,27 +185,80 @@ async def chat_endpoint(request: ChatRequest):
         # ログ保存失敗がチャット応答自体をブロックしないよう例外ハンドリング
         pass
 
-    # 5. オンライン・シャドウテストの非同期実行 (Chapter 10.5: Shadow-testing new models)
-    try:
-        global_shadow_runner.schedule_shadow(
-            session_id=session_id,
-            input_text=clean_message,
-            conversation_context=context,
-            production_output=reply,
-            production_model_id=config.GEMINI_MODEL,
-            production_latency_ms=latency_ms,
-            instruction=instruction,
-            generation_config={"temperature": 0.0}
-        )
-    except Exception:
-        # シャドウスケジュール失敗がチャット応答自体をブロックしないよう例外ハンドリング
-        pass
+    # 5. A/B テスト (Side-by-Side) または非同期シャドウテストの実行
+    ab_test_payload = None
+    ab_mode = request.ab_test_mode or "auto"
+    should_run_ab = False
+
+    if global_shadow_runner.enabled:
+        if ab_mode == "always":
+            should_run_ab = True
+        elif ab_mode == "auto":
+            # 30% の確率で Side-by-Side A/B テストを発生させる
+            should_run_ab = (random.random() < 0.3)
+        elif ab_mode == "off":
+            should_run_ab = False
+
+    if should_run_ab:
+        try:
+            # 候補モデルを実行し、位置バイアス防止のため A/B をランダムシャッフル
+            ab_test_payload = await global_shadow_runner.run_blind_ab_test(
+                session_id=session_id,
+                input_text=clean_message,
+                conversation_context=context,
+                production_output=reply,
+                production_model_id=config.GEMINI_MODEL,
+                production_latency_ms=latency_ms,
+                instruction=instruction,
+                generation_config={"temperature": 0.0}
+            )
+        except Exception:
+            pass
+    else:
+        # A/B テスト非対象時は完全非同期でシャドウテストを実行 (Chapter 10.5)
+        try:
+            global_shadow_runner.schedule_shadow(
+                session_id=session_id,
+                input_text=clean_message,
+                conversation_context=context,
+                production_output=reply,
+                production_model_id=config.GEMINI_MODEL,
+                production_latency_ms=latency_ms,
+                instruction=instruction,
+                generation_config={"temperature": 0.0}
+            )
+        except Exception:
+            pass
 
     return ChatResponse(
         reply=reply,
         session_id=session_id,
-        model=config.GEMINI_MODEL
+        model=config.GEMINI_MODEL,
+        ab_test=ab_test_payload
     )
+
+
+@app.post("/api/eval/feedback")
+async def submit_feedback_endpoint(feedback: FeedbackRequest):
+    """
+    Side-by-Side A/Bテストに対するユーザー投票を記録するエンドポイント
+    """
+    record = global_shadow_runner.record_feedback(
+        ab_test_id=feedback.ab_test_id,
+        session_id=feedback.session_id,
+        selected_choice=feedback.selected_choice,
+        mapping=feedback.mapping,
+        user_comment=feedback.user_comment
+    )
+    return {"status": "ok", "feedback_id": record["feedback_id"]}
+
+
+@app.get("/api/eval/feedback/summary")
+async def get_feedback_summary_endpoint():
+    """
+    蓄積された Side-by-Side ユーザー投票（勝率サマリ）を返却するエンドポイント
+    """
+    return global_shadow_runner.get_feedback_summary()
 
 
 @app.get("/api/eval/shadow/status")
@@ -216,6 +285,21 @@ async def get_shadow_report(limit: Optional[int] = 100):
     report_md = generate_shadow_diff_report(metrics)
     return {
         "metrics": metrics,
+        "report_markdown": report_md
+    }
+
+
+@app.get("/api/eval/batch/finops")
+async def get_batch_finops_report(limit: Optional[int] = 100):
+    """
+    Gemini Batch API (50% OFF) 活用による FinOps コスト削減試算レポートを返却するエンドポイント
+    """
+    batch_mgr = GeminiBatchManager()
+    report_md = batch_mgr.generate_finops_report(limit=limit)
+    _, count = batch_mgr.prepare_batch_input_file(limit=limit)
+    savings = batch_mgr.calculate_cost_savings(total_queries=count)
+    return {
+        "savings": savings,
         "report_markdown": report_md
     }
 

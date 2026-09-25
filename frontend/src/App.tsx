@@ -14,6 +14,7 @@ export const App: React.FC = () => {
     model: 'gemini-3.5-flash-lite',
     has_api_key: false,
   });
+  const [abTestMode, setAbTestMode] = useState<'auto' | 'always' | 'off'>('auto');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +48,14 @@ export const App: React.FC = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
+  const handleVoteAbTest = (messageId: string, choice: 'A' | 'B' | 'tie') => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, feedbackSelected: choice } : msg
+      )
+    );
+  };
+
   const handleSendMessage = async (text: string) => {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: Message = {
@@ -69,6 +78,7 @@ export const App: React.FC = () => {
           message: text,
           session_id: sessionId,
           user_id: 'default_user',
+          ab_test_mode: abTestMode,
         }),
       });
 
@@ -87,6 +97,7 @@ export const App: React.FC = () => {
         sender: 'assistant',
         content: data.reply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        abTest: data.ab_test,
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -128,6 +139,8 @@ export const App: React.FC = () => {
     <div className="app-container">
       <Header
         modelName={config.model}
+        abTestMode={abTestMode}
+        onChangeAbTestMode={setAbTestMode}
         onResetSession={handleResetSession}
         isLoading={isLoading}
       />
@@ -141,7 +154,8 @@ export const App: React.FC = () => {
               </div>
               <h2>Google ADK Agent Chat</h2>
               <p>
-                Google Agent Development Kit (ADK) と FastAPI、React、Gemini-3.5-Flash-Lite を利用したAIチャットボットです。メッセージを入力して会話を始めましょう。
+                Google Agent Development Kit (ADK) と FastAPI、React、Gemini を利用したAIチャットボットです。
+                ヘッダーの「A/Bテスト」から、最新モデルとの Side-by-Side 評価を体験できます。
               </p>
 
               <div className="suggestion-chips">
@@ -169,7 +183,13 @@ export const App: React.FC = () => {
               </div>
             </div>
           ) : (
-            messages.map((msg) => <ChatMessage key={msg.id} message={msg} />)
+            messages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onVoteAbTest={handleVoteAbTest}
+              />
+            ))
           )}
 
           {isLoading && (
