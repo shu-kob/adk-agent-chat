@@ -180,6 +180,8 @@ class ShadowRunner:
         cost_usd = 0.0
         status = "success"
         error_message = None
+        actual_model = self.candidate_model_id
+        actual_model_display = self.candidate_model_id
 
         start_time = time.time()
 
