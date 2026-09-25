@@ -17,6 +17,7 @@ export const App: React.FC = () => {
   const [abTestMode, setAbTestMode] = useState<'auto' | 'always' | 'off'>('auto');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Save session ID
   useEffect(() => {
@@ -56,6 +57,14 @@ export const App: React.FC = () => {
     );
   };
 
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+  };
+
   const handleSendMessage = async (text: string) => {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: Message = {
@@ -68,12 +77,16 @@ export const App: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
         body: JSON.stringify({
           message: text,
           session_id: sessionId,
@@ -102,17 +115,28 @@ export const App: React.FC = () => {
 
       setMessages((prev) => [...prev, botMsg]);
     } catch (err: any) {
-      console.error('Chat API Error:', err);
-      const errorMsg: Message = {
-        id: `err_${Date.now()}`,
-        sender: 'assistant',
-        content: `⚠️ エラーが発生しました: ${err.message || 'サーバーとの通信に失敗しました。'}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isError: true,
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      if (err.name === 'AbortError') {
+        const abortedMsg: Message = {
+          id: `abort_${Date.now()}`,
+          sender: 'assistant',
+          content: '⏹️ 生成を停止しました。',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, abortedMsg]);
+      } else {
+        console.error('Chat API Error:', err);
+        const errorMsg: Message = {
+          id: `err_${Date.now()}`,
+          sender: 'assistant',
+          content: `⚠️ エラーが発生しました: ${err.message || 'サーバーとの通信に失敗しました。'}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isError: true,
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -211,7 +235,7 @@ export const App: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+        <ChatInput onSendMessage={handleSendMessage} onStop={handleStop} isLoading={isLoading} />
       </main>
     </div>
   );

@@ -41,29 +41,29 @@ export const SideBySideComparison: React.FC<SideBySideProps> = ({
   };
 
   return (
-    <div className="w-full my-4 p-4 rounded-2xl bg-gradient-to-br from-indigo-900/20 via-slate-900/40 to-purple-900/20 border border-indigo-500/30 shadow-xl backdrop-blur-md transition-all">
+    <div className="side-by-side-container">
       {/* Header Banner */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
-            <Scale className="w-4 h-4 animate-pulse" />
+      <div className="side-by-side-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ padding: '6px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8' }}>
+            <Scale size={16} />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
+            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
               どちらの回答が優れていますか？
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="card-label-badge" style={{ background: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', borderColor: 'rgba(99, 102, 241, 0.4)' }}>
                 Blind A/B Test
               </span>
             </h4>
-            <p className="text-xs text-slate-400">
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>
               位置バイアスを防ぐため、モデル配置はランダムです。回答をお選びください。
             </p>
           </div>
         </div>
 
         {selected && (
-          <div className="flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 animate-fade-in">
-            <CheckCircle2 className="w-3.5 h-3.5" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 500, color: '#34d399', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '9999px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+            <CheckCircle2 size={14} />
             <span>投票完了</span>
           </div>
         )}
@@ -71,100 +71,72 @@ export const SideBySideComparison: React.FC<SideBySideProps> = ({
 
       {/* Reveal Banner (Shown after voting) */}
       {selected && (
-        <div className="mb-4 p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs text-indigo-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Eye className="w-4 h-4 text-indigo-400" />
+        <div className="reveal-banner">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Eye size={16} color="#818cf8" />
             <span>
-              <strong>モデル正解開示:</strong> 回答A = <code className="bg-black/30 px-1.5 py-0.5 rounded text-amber-300">{abTest.reveal_info.A}</code> / 回答B = <code className="bg-black/30 px-1.5 py-0.5 rounded text-cyan-300">{abTest.reveal_info.B}</code>
+              <strong>モデル正解開示:</strong> 回答A = <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#fcd34d' }}>{abTest.reveal_info.A}</code> / 回答B = <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#67e8f9' }}>{abTest.reveal_info.B}</code>
             </span>
           </div>
-          <span className="text-[11px] text-slate-400">
+          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
             あなたの選択: <strong>{selected === 'tie' ? '同等' : `回答 ${selected}`}</strong>
           </span>
         </div>
       )}
 
-      {/* Side-by-Side Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+      {/* Side-by-Side Cards (Guaranteed 2 Columns Horizontal Layout) */}
+      <div className="side-by-side-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%' }}>
         {/* Choice A */}
-        <div
-          className={`flex flex-col justify-between p-4 rounded-xl border transition-all duration-200 ${
-            selected === 'A'
-              ? 'bg-indigo-900/30 border-indigo-400 ring-2 ring-indigo-500/30 shadow-lg'
-              : 'bg-slate-900/60 border-white/10 hover:border-white/20'
-          }`}
-        >
+        <div className={`side-by-side-card ${selected === 'A' ? 'selected' : ''}`}>
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-300 px-2.5 py-0.5 rounded-md bg-white/5 border border-white/10">
-                回答 A
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span className="card-label-badge">回答 A</span>
               {selected && (
-                <span className="text-[11px] text-slate-400">
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
                   {abTest.reveal_info.A}
                 </span>
               )}
             </div>
-            <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+            <div className="card-content-text">
               {abTest.choice_a}
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-white/5 flex justify-end">
+          <div className="card-actions">
             <button
               onClick={() => handleSelect('A')}
               disabled={!!selected || isSubmitting}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                selected === 'A'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : selected
-                  ? 'opacity-40 cursor-not-allowed bg-white/5 text-slate-400'
-                  : 'bg-white/10 hover:bg-indigo-600 text-slate-200 hover:text-white cursor-pointer active:scale-95'
-              }`}
+              className={`btn-vote-choice ${selected === 'A' ? 'active' : ''}`}
             >
-              <ThumbsUp className="w-3.5 h-3.5" />
+              <ThumbsUp size={14} />
               <span>回答 A が良い</span>
             </button>
           </div>
         </div>
 
         {/* Choice B */}
-        <div
-          className={`flex flex-col justify-between p-4 rounded-xl border transition-all duration-200 ${
-            selected === 'B'
-              ? 'bg-indigo-900/30 border-indigo-400 ring-2 ring-indigo-500/30 shadow-lg'
-              : 'bg-slate-900/60 border-white/10 hover:border-white/20'
-          }`}
-        >
+        <div className={`side-by-side-card ${selected === 'B' ? 'selected' : ''}`}>
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-300 px-2.5 py-0.5 rounded-md bg-white/5 border border-white/10">
-                回答 B
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span className="card-label-badge">回答 B</span>
               {selected && (
-                <span className="text-[11px] text-slate-400">
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
                   {abTest.reveal_info.B}
                 </span>
               )}
             </div>
-            <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+            <div className="card-content-text">
               {abTest.choice_b}
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-white/5 flex justify-end">
+          <div className="card-actions">
             <button
               onClick={() => handleSelect('B')}
               disabled={!!selected || isSubmitting}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                selected === 'B'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : selected
-                  ? 'opacity-40 cursor-not-allowed bg-white/5 text-slate-400'
-                  : 'bg-white/10 hover:bg-indigo-600 text-slate-200 hover:text-white cursor-pointer active:scale-95'
-              }`}
+              className={`btn-vote-choice ${selected === 'B' ? 'active' : ''}`}
             >
-              <ThumbsUp className="w-3.5 h-3.5" />
+              <ThumbsUp size={14} />
               <span>回答 B が良い</span>
             </button>
           </div>
@@ -172,19 +144,14 @@ export const SideBySideComparison: React.FC<SideBySideProps> = ({
       </div>
 
       {/* Tie Button */}
-      <div className="flex items-center justify-center pt-1">
+      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '4px' }}>
         <button
           onClick={() => handleSelect('tie')}
           disabled={!!selected || isSubmitting}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-            selected === 'tie'
-              ? 'bg-purple-600 text-white ring-2 ring-purple-400/30 shadow-md'
-              : selected
-              ? 'opacity-40 cursor-not-allowed bg-white/5 text-slate-400'
-              : 'bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white cursor-pointer'
-          }`}
+          className={`btn-vote-choice ${selected === 'tie' ? 'active' : ''}`}
+          style={{ borderRadius: '9999px', padding: '6px 16px' }}
         >
-          <Scale className="w-3.5 h-3.5" />
+          <Scale size={14} />
           <span>どちらも同等 / 差はない</span>
         </button>
       </div>
