@@ -30,3 +30,6 @@ dist-ssr/
 
 # Traffic capture data (Phase 3)
 backend/eval/traffic/data/
+
+# Local evaluation summaries & personal experiment notes
+docs/SHADOW_TESTING_INSIGHTS.md
