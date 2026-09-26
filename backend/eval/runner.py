@@ -64,6 +64,7 @@ DEFAULT_INSTRUCTION: str = "You are a helpful, friendly, and highly intelligent 
 MODEL_PRICING: Dict[str, Dict[str, float]] = {
     "gemini-3.5-flash-lite": {"input": 0.075, "output": 0.30},
     "gemini-3.7-flash": {"input": 0.15, "output": 0.60},
+    "gemini-3.8-flash": {"input": 0.15, "output": 0.60},
     "gemini-3.1-pro-preview": {"input": 1.25, "output": 5.00},
     "default": {"input": 0.15, "output": 0.60}
 }

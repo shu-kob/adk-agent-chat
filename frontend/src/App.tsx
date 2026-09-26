@@ -14,8 +14,10 @@ export const App: React.FC = () => {
     model: 'gemini-3.5-flash-lite',
     has_api_key: false,
   });
+  const [abTestMode, setAbTestMode] = useState<'auto' | 'always' | 'off'>('auto');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Save session ID
   useEffect(() => {
@@ -47,6 +49,22 @@ export const App: React.FC = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
+  const handleVoteAbTest = (messageId: string, choice: 'A' | 'B' | 'tie') => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, feedbackSelected: choice } : msg
+      )
+    );
+  };
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+  };
+
   const handleSendMessage = async (text: string) => {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: Message = {
@@ -59,16 +77,21 @@ export const App: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
         body: JSON.stringify({
           message: text,
           session_id: sessionId,
           user_id: 'default_user',
+          ab_test_mode: abTestMode,
         }),
       });
 
@@ -87,21 +110,33 @@ export const App: React.FC = () => {
         sender: 'assistant',
         content: data.reply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        abTest: data.ab_test,
       };
 
       setMessages((prev) => [...prev, botMsg]);
     } catch (err: any) {
-      console.error('Chat API Error:', err);
-      const errorMsg: Message = {
-        id: `err_${Date.now()}`,
-        sender: 'assistant',
-        content: `⚠️ エラーが発生しました: ${err.message || 'サーバーとの通信に失敗しました。'}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isError: true,
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      if (err.name === 'AbortError') {
+        const abortedMsg: Message = {
+          id: `abort_${Date.now()}`,
+          sender: 'assistant',
+          content: '⏹️ 生成を停止しました。',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, abortedMsg]);
+      } else {
+        console.error('Chat API Error:', err);
+        const errorMsg: Message = {
+          id: `err_${Date.now()}`,
+          sender: 'assistant',
+          content: `⚠️ エラーが発生しました: ${err.message || 'サーバーとの通信に失敗しました。'}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isError: true,
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -128,6 +163,8 @@ export const App: React.FC = () => {
     <div className="app-container">
       <Header
         modelName={config.model}
+        abTestMode={abTestMode}
+        onChangeAbTestMode={setAbTestMode}
         onResetSession={handleResetSession}
         isLoading={isLoading}
       />
@@ -141,7 +178,8 @@ export const App: React.FC = () => {
               </div>
               <h2>Google ADK Agent Chat</h2>
               <p>
-                Google Agent Development Kit (ADK) と FastAPI、React、Gemini-3.5-Flash-Lite を利用したAIチャットボットです。メッセージを入力して会話を始めましょう。
+                Google Agent Development Kit (ADK) と FastAPI、React、Gemini を利用したAIチャットボットです。
+                ヘッダーの「A/Bテスト」から、最新モデルとの Side-by-Side 評価を体験できます。
               </p>
 
               <div className="suggestion-chips">
@@ -169,7 +207,13 @@ export const App: React.FC = () => {
               </div>
             </div>
           ) : (
-            messages.map((msg) => <ChatMessage key={msg.id} message={msg} />)
+            messages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onVoteAbTest={handleVoteAbTest}
+              />
+            ))
           )}
 
           {isLoading && (
@@ -191,7 +235,7 @@ export const App: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+        <ChatInput onSendMessage={handleSendMessage} onStop={handleStop} isLoading={isLoading} />
       </main>
     </div>
   );
