@@ -33,3 +33,8 @@ backend/eval/traffic/data/
 
 # Local evaluation summaries & personal experiment notes
 docs/SHADOW_TESTING_INSIGHTS.md
+
+# External/Book dataset & reports (do not commit)
+backend/eval/results/golden_model_comparison_report.md
+backend/eval/results/golden_comparison_20260927_182731.json
+backend/eval/datasets/golden_dataset_ch10.json
