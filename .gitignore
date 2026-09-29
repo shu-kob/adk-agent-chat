@@ -31,8 +31,8 @@ dist-ssr/
 # Traffic capture data (Phase 3)
 backend/eval/traffic/data/
 
-# Local evaluation summaries & personal experiment notes
-docs/SHADOW_TESTING_INSIGHTS.md
+# Local evaluation summaries & personal experiment notes (private docs)
+docs/private/
 
 # External/Book dataset & reports (do not commit)
 backend/eval/results/golden_model_comparison_report.md

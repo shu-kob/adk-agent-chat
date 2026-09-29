@@ -8,7 +8,6 @@ Google Agent Development Kit (ADK) を活用した、React + FastAPI による A
 
 - 📘 **[詳細仕様書 (docs/SPECIFICATION.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION.md)**: システム設計、API 定義、セッション管理、ベンチマーク仕様
 - 👥 **[Shadow Testing 仕様書 (docs/SHADOW_TESTING.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SHADOW_TESTING.md)**: オンライン・シャドウテストのアーキテクチャ図、API、運用仕様
-- 📊 **[Shadow Testing 実験インサイト (docs/SHADOW_TESTING_INSIGHTS.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SHADOW_TESTING_INSIGHTS.md)**: 実トラフィック検証ログ、モデル選好の逆転劇、ルーティング知見
 - 📗 **[評価基盤再設計 追補仕様 v1 (docs/SPECIFICATION_ADDENDUM_v1.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v1.md)**: 測定信頼性確保・データセット拡充・トラフィックリプレイ基盤
 - 📗 **[仕様書整合性修正 追補仕様 v2 (docs/SPECIFICATION_ADDENDUM_v2.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v2.md)**: 仕様書整合性の修正と構成整理
 - 📗 **[実装確認事項 追補仕様 v3 (docs/SPECIFICATION_ADDENDUM_v3.md)](file:///Users/kobuchishu/programing/adk-agent-chat/docs/SPECIFICATION_ADDENDUM_v3.md)**: 実装確認事項 (ADK Runner非同期実行 & 差分指標設計意図)
