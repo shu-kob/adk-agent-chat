@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { User, Bot, Copy, Check, AlertTriangle } from 'lucide-react';
+import { User, Bot, Copy, Check, AlertTriangle, Cpu } from 'lucide-react';
 import { Message } from '../types';
 import { SideBySideComparison } from './SideBySideComparison';
 
@@ -65,7 +65,32 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, onVoteAbTest 
             )}
           </div>
         )}
-        <span className="message-timestamp">{message.timestamp}</span>
+
+        <div className="message-footer" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+          <span className="message-timestamp">{message.timestamp}</span>
+          {isAssistant && message.model && !message.abTest && (
+            <span
+              className="message-model-badge"
+              title={`応答生成モデル: ${message.model}`}
+              style={{
+                fontSize: '11px',
+                padding: '1px 8px',
+                borderRadius: '12px',
+                background: 'rgba(99, 102, 241, 0.12)',
+                color: '#a5b4fc',
+                border: '1px solid rgba(99, 102, 241, 0.28)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontFamily: 'monospace',
+                letterSpacing: '0.02em',
+              }}
+            >
+              <Cpu size={12} color="#818cf8" />
+              <span>{message.model}</span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

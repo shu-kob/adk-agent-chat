@@ -110,6 +110,7 @@ export const App: React.FC = () => {
         sender: 'assistant',
         content: data.reply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        model: data.model,
         abTest: data.ab_test,
       };
 

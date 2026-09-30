@@ -92,7 +92,22 @@ export const SideBySideComparison: React.FC<SideBySideProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span className="card-label-badge">回答 A</span>
               {selected && (
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: '8px',
+                    background: selected === 'A' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                    color: selected === 'A' ? '#34d399' : '#cbd5e1',
+                    border: `1px solid ${selected === 'A' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.15)'}`,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {selected === 'A' ? '🏆 選択: ' : '🤖 '}
                   {abTest.reveal_info.A}
                 </span>
               )}
@@ -111,6 +126,29 @@ export const SideBySideComparison: React.FC<SideBySideProps> = ({
               <ThumbsUp size={14} />
               <span>回答 A が良い</span>
             </button>
+            {selected && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  background: selected === 'A' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                  color: selected === 'A' ? '#34d399' : '#94a3b8',
+                  border: `1px solid ${selected === 'A' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
+                  fontFamily: 'monospace',
+                  textAlign: 'center',
+                }}
+              >
+                <span>{selected === 'A' ? '🏆 あなたの選択:' : '🤖 モデル:'}</span>
+                <span style={{ color: selected === 'A' ? '#34d399' : '#cbd5e1' }}>{abTest.reveal_info.A}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -120,7 +158,22 @@ export const SideBySideComparison: React.FC<SideBySideProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span className="card-label-badge">回答 B</span>
               {selected && (
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: '8px',
+                    background: selected === 'B' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                    color: selected === 'B' ? '#34d399' : '#cbd5e1',
+                    border: `1px solid ${selected === 'B' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.15)'}`,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {selected === 'B' ? '🏆 選択: ' : '🤖 '}
                   {abTest.reveal_info.B}
                 </span>
               )}
@@ -139,6 +192,29 @@ export const SideBySideComparison: React.FC<SideBySideProps> = ({
               <ThumbsUp size={14} />
               <span>回答 B が良い</span>
             </button>
+            {selected && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  background: selected === 'B' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                  color: selected === 'B' ? '#34d399' : '#94a3b8',
+                  border: `1px solid ${selected === 'B' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
+                  fontFamily: 'monospace',
+                  textAlign: 'center',
+                }}
+              >
+                <span>{selected === 'B' ? '🏆 あなたの選択:' : '🤖 モデル:'}</span>
+                <span style={{ color: selected === 'B' ? '#34d399' : '#cbd5e1' }}>{abTest.reveal_info.B}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
