@@ -20,6 +20,7 @@ export interface Message {
   content: string;
   timestamp: string;
   isError?: boolean;
+  model?: string;
   abTest?: ABTestData;
   feedbackSelected?: 'A' | 'B' | 'tie';
 }
