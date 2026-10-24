@@ -51,3 +51,35 @@ export interface AppConfig {
   default_compare_model?: string;
   compare_models?: CompareModelOption[];
 }
+
+export interface BatchSavings {
+  model_id: string;
+  total_queries: number;
+  estimated_prompt_tokens: number;
+  estimated_output_tokens: number;
+  ondemand_cost_usd: number;
+  batch_cost_usd: number;
+  discount_percentage: string;
+  cost_savings_usd: number;
+  capacity_for_1000_jpy: number;
+  cost_per_1000_queries_jpy: number;
+}
+
+export interface BatchFinOpsResponse {
+  savings: BatchSavings;
+  report_markdown: string;
+}
+
+export interface BatchJobResponse {
+  status: string;
+  job: {
+    job_id: string;
+    status: string;
+    model_id: string;
+    total_queries: number;
+    input_file_path: string;
+    output_file_path: string;
+    submitted_at: string;
+    savings: BatchSavings;
+  };
+}

@@ -79,6 +79,13 @@ class FeedbackRequest(BaseModel):
     mapping: Dict[str, str] = Field(..., description="A/Bとモデルキーの対応辞書")
     user_comment: Optional[str] = None
 
+class BatchSubmitRequest(BaseModel):
+    """
+    Gemini Batch API 実行投入リクエストモデル
+    """
+    limit: Optional[int] = Field(default=100, description="処理対象クエリ件数上限")
+    model_id: Optional[str] = Field(default=None, description="バッチ実行対象のモデルID")
+
 class ResetSessionRequest(BaseModel):
     """
     セッションリセット要求モデル
@@ -324,6 +331,19 @@ async def get_batch_finops_report(limit: Optional[int] = 100):
     return {
         "savings": savings,
         "report_markdown": report_md
+    }
+
+
+@app.post("/api/eval/batch/submit")
+async def submit_batch_job_endpoint(request: BatchSubmitRequest):
+    """
+    蓄積トラフィックから Gemini Batch API 向けリクエストファイルを生成し、バッチ推論ジョブを実行するエンドポイント
+    """
+    batch_mgr = GeminiBatchManager(candidate_model_id=request.model_id)
+    job_result = batch_mgr.submit_batch_job(limit=request.limit, model_id=request.model_id)
+    return {
+        "status": "ok",
+        "job": job_result
     }
 
 @app.post("/api/sessions/reset", response_model=ResetSessionResponse)

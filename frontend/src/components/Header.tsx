@@ -18,6 +18,7 @@ interface HeaderProps {
   compareOptions?: CompareModelOption[];
   routingMode: 'auto' | 'manual';
   onChangeRoutingMode: (mode: 'auto' | 'manual') => void;
+  onOpenFinOps?: () => void;
   onResetSession: () => void;
   isLoading: boolean;
 }
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   compareOptions = DEFAULT_COMPARE_OPTIONS,
   routingMode,
   onChangeRoutingMode,
+  onOpenFinOps,
   onResetSession,
   isLoading,
 }) => {
@@ -109,6 +111,17 @@ export const Header: React.FC<HeaderProps> = ({
           <span>{routingMode === 'auto' ? '🧭 動的配信' : `標準: ${modelName}`}</span>
           <span className="status-dot"></span>
         </div>
+
+        {onOpenFinOps && (
+          <button
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600/40 to-emerald-600/30 border border-blue-500/40 text-blue-200 hover:text-white hover:border-blue-400 text-xs font-semibold shadow-sm transition-all"
+            onClick={onOpenFinOps}
+            title="Gemini Batch API 50% OFF コスト最適化試算を開く"
+          >
+            <span className="text-amber-400 font-bold">💰</span>
+            <span>バッチFinOps</span>
+          </button>
+        )}
 
         <button
           className="btn-icon"

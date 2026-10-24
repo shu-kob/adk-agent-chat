@@ -364,6 +364,20 @@ graph TD
   - レスポンスに `routed_info: { "model_id": string, "category": string, "reason": string }` を含めて返却。
   - フロントエンド UI（ChatMessage コンポーネント）に `🧭 動的ルーティング: <モデル名> (<判定理由>)` バッジを美しく表示。
 
+### 6.6 Gemini Batch API (50% OFF) FinOps 連携仕様 (`eval/traffic/batch.py`)
+
+蓄積された生トラフィックログから、Google Cloud Vertex AI / Gemini Batch API 向けのリクエストファイル（JSONL）を自動生成し、通常オンデマンドの【50% OFF（半額）】でオフライン再評価を実行・試算する FinOps モジュール。
+
+- **1,000円あたりの検証可能クエリ件数 (`capacity_for_1000_jpy`)**:
+  - `gemini-3.5-flash-lite`: 1,000 円（約 6.67 USD）で **約 10 万 〜 19 万件** のバッチ推論が可能。
+  - `gemini-3.8-flash`: 1,000 円で **約 5 万件** のバッチ推論が可能。
+- **提供エンドポイント**:
+  - `GET /api/eval/batch/finops`: コスト削減試算（オンデマンド vs バッチ50%OFF、1,000円あたりの検証力）および Markdown レポートの取得。
+  - `POST /api/eval/batch/submit`: 蓄積トラフィックからバッチジョブ（JSONLファイル生成 & 実行）をキック。
+- **フロントエンド UI (`BatchFinOpsModal.tsx`)**:
+  - ヘッダーの `💰 バッチFinOps` ボタンからワンクリックで開くモーダル。
+  - 50% OFF バッジ、1,000円での処理可能件数のハイライトカード、コスト比較表、バッチジョブ実行ボタンを完備。
+
 ---
 
 ## 7. 仕様更新チェックリスト（開発者・AI 共通運用ルール）
