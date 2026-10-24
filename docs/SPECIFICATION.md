@@ -1,7 +1,10 @@
 # 📘 ADK Agent Chat システム全体詳細仕様書 (SPECIFICATION)
 
 > **⚠️ 仕様書保守・開発ルール**:
-> 1. **TDD (Test-Driven Development) の徹底**: 新機能の追加、バグ修正、評価基盤の拡張・改修を行う際は、必ず **TDD (Red → Green → Refactor)** のサイクルで実装・検証すること。
+> 1. **ATDD (Acceptance Test-Driven Development) / TDD の徹底**:
+>    - PBI（ユーザーストーリー・タスク）から受け入れ条件 (Acceptance Criteria) を抽出。
+>    - **受け入れ条件が曖昧な場合は推測せず必ず人間（ユーザー）に確認すること**。
+>    - 受け入れ条件をテストケースとして先に作成し、**必ず Red → Green → Refactor** のサイクルで実装・検証すること。
 > 2. **日本語コメント & Docstring の徹底**:
 >    - 関数・クラス・メソッドには引数（型・意味）、戻り値（型・意味）、例外を明記した丁寧な日本語 Docstring を付与すること。
 >    - 複雑なロジックには「何のために何をしているか」のステップ解説をこまめに記述すること。
@@ -32,7 +35,7 @@ graph TD
     end
 
     subgraph LLM Providers
-        ADK <-->|Vertex AI or AI Studio| Gemini[Gemini 系列<br/>※対象モデルは 5.1 参照]
+        ADK <-->|Vertex AI or AI Studio| Gemini[Gemini 系列<br/>標準: gemini-3.8-flash]
     end
     
     subgraph Evaluation["LLM Evaluation Benchmark (Phase 1 & 2)"]
@@ -72,7 +75,7 @@ graph TD
 | **Backend** | Python, FastAPI, Uvicorn | Python 3.11+, 非同期 REST API (async/await) |
 | **Agent Framework** | Google Agent Development Kit (`google-adk`) | `LlmAgent`, `Runner`, `InMemorySessionService` (Fallback 対応) |
 | **LLM SDK** | Google GenAI SDK (`google-genai`) | AI Studio (API Key) & Vertex AI (ADC) 両対応 |
-| **LLM Models** | Gemini 系列 | 評価対象モデルは 5.1 を参照 |
+| **LLM Models** | Gemini 系列 | 標準: `gemini-3.8-flash`。比較対象: `gemini-3.5-flash-lite`, `gemini-3.5-flash`, `gemini-4-argon`, `random` |
 | **Evaluation** | Python 決定論的ルールベース評価エンジン | 決定論的アサーション (Regex, JSON Schema, 編集距離) |
 
 ---
@@ -103,6 +106,7 @@ backend/
         ├── __init__.py
         ├── store.py            # トラフィック蓄積 & PII マスキング
         ├── replay.py           # N 候補バッチリプレイ実行ジョブ
+        ├── shadow.py           # オンライン・シャドウテスト & Side-by-Side ブラインド A/B テスト
         ├── diff_analyzer.py    # 決定論的差分分析
         └── data/               # 蓄積データ (Git 管理外)
 ```
@@ -115,7 +119,9 @@ backend/
 | `GOOGLE_GENAI_USE_VERTEXAI` | △ | `false` | `true` の場合、Vertex AI 経由で呼び出し (ADC 認証) |
 | `GOOGLE_CLOUD_PROJECT` | △ | なし | Vertex AI 使用時の GCP プロジェクト ID |
 | `GOOGLE_CLOUD_LOCATION` | - | `global` | Vertex AI のリージョン (例: `global`, `us-central1`) |
-| `GEMINI_MODEL` | - | `gemini-3.5-flash-lite` | チャット機能で使用する既定モデル。評価対象モデルとは独立して設定される |
+| `GEMINI_MODEL` | - | `gemini-3.8-flash` | チャット機能で使用する標準ベースラインモデル |
+| `SHADOW_TEST_ENABLED` | - | `false` | オンライン・シャドウテストおよび Side-by-Side 比較機能の有効フラグ |
+| `SHADOW_MODEL_ID` | - | `gemini-3.8-flash` | 既定のシャドウ評価候補モデル |
 | `HOST` | - | `0.0.0.0` | API サーバー待受ホスト |
 | `PORT` | - | `8000` | API サーバー待受ポート |
 
@@ -127,29 +133,38 @@ backend/
   ```json
   {
     "status": "ok",
-    "model": "gemini-3.5-flash-lite",
+    "model": "gemini-3.8-flash",
     "adk_agent": "initialized"
   }
   ```
 
 #### ② `GET /api/config`
-フロントエンド向けのモデル・APIキー設定状態の取得。
+フロントエンド向けのモデル・APIキー設定状態および選択可能な比較対象モデル一覧の取得。
 - **Response (200 OK)**:
   ```json
   {
-    "model": "gemini-3.5-flash-lite",
-    "has_api_key": true
+    "model": "gemini-3.8-flash",
+    "has_api_key": true,
+    "default_compare_model": "random",
+    "compare_models": [
+      { "id": "random", "name": "🎲 ランダム比較モード" },
+      { "id": "gemini-3.5-flash-lite", "name": "3.5-flash-lite" },
+      { "id": "gemini-3.5-flash", "name": "3.5-flash" },
+      { "id": "gemini-4-argon", "name": "4-argon" }
+    ]
   }
   ```
 
 #### ③ `POST /api/chat`
-ユーザーメッセージを受け取り、ADK Agent / Gemini からの応答を返却。同時に直前の会話履歴コンテキストを含めて対話ログを自動蓄積（Phase 3）。
+ユーザーメッセージを受け取り、ADK Agent / Gemini からの応答を返却。Side-by-Side 比較時は指定された比較対象モデルとのブラインド A/B テストデータを同時に生成。
 - **Request Body**:
   ```json
   {
     "message": "こんにちは！何ができますか？",
     "session_id": "optional-uuid-string",
-    "user_id": "default_user"
+    "user_id": "default_user",
+    "ab_test_mode": "auto",
+    "compare_model": "random"
   }
   ```
 - **Response (200 OK)**:
@@ -157,7 +172,15 @@ backend/
   {
     "reply": "こんにちは！私は Google ADK と Gemini で動く AI アシスタントです...",
     "session_id": "550e8400-e29b-41d4-a716-446655440000",
-    "model": "gemini-3.5-flash-lite"
+    "model": "gemini-3.8-flash",
+    "ab_test": {
+      "ab_test_id": "uuid-ab-test",
+      "session_id": "550e8400-e29b-41d4-a716-446655440000",
+      "choice_a": "回答Aの本文",
+      "choice_b": "回答Bの本文",
+      "reveal_info": { "A": "gemini-3.8-flash", "B": "gemini-4-argon" },
+      "mapping": { "A": "production", "B": "candidate" }
+    }
   }
   ```
 - **Error Responses**:
