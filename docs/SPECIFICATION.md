@@ -336,6 +336,34 @@ LLM-as-a-judge（主観的評価）を一切介さず、100% 決定論的なメ�
 > 
 > コードブロックで囲まれた有効な JSON は、JSON 妥当性率では合格、CodeBlock 混入率では不合格として計上されます。この分離により、「構造は正しく生成できているが出力形式の指示に追従できていない」という失敗パターンを正確に識別・分析できます（`eval/evaluator.py` のアサーション設計とも完全に整合）。
 
+### 6.5 動的モデルルーティング仕様 (`eval/traffic/router.py`)
+
+ユーザー入力プロンプトのトピック、意図、複雑性、対話属性をゼロ遅延で解析し、最適な Gemini モデルへリクエストを動的に振り分ける Contextual Dynamic Router を提供します。
+
+```mermaid
+graph TD
+    UserQuery[ユーザー入力クエリ] --> Router[DynamicRouter: 意図・難易度解析]
+    Router -->|超難問・先端理論・数学証明| M4[gemini-4-argon<br/>最上位推論・極限タスク]
+    Router -->|高度推論・政策試算・コード設計| M38[gemini-3.8-flash<br/>標準推論・万能ベースライン]
+    Router -->|日常会話・共感・即答・簡単FAQ| M35[gemini-3.5-flash-lite<br/>超高速・低コスト・高共感]
+```
+
+- **3段階ルーティング基準 (3-Tier Routing Rules)**:
+  1. **【最上位推論モデル】`gemini-4-argon`**:
+     - 判定キーワード/パターン: `めちゃ難しい`, `極めて難解`, `超難問`, `P対NP問題`, `計算量理論`, `量子誤り訂正`, `トポロジカル量子`, `Byzantine Fault Tolerance (BFT)`, `零知識証明 (ZKP)`, `形式検証`, `フェルマー予想`, `モジュラー性定理` 等。
+     - カテゴリ: `extreme_reasoning`
+  2. **【高度推論モデル】`gemini-3.8-flash` (標準ベースライン)**:
+     - 判定キーワード/パターン: `マクロ経済`, `財政`, `インフレ`, `減税影響試算`, `数理モデル`, `Python asyncio/並行並列`, `CAP定理`, `Paxos/Raft`, `医療法/医師法ガイドライン`, 長文クエリ (>120文字)。
+     - カテゴリ: `complex_reasoning`, `policy_analysis`, `technical_code`
+  3. **【高速・高共感モデル】`gemini-3.5-flash-lite`**:
+     - 判定キーワード/パターン: `こんにちは`, `ありがとう`, `レシピ/食材`, `家計/やりくり節約`, `疲れた/励まして`, 短文FAQ。
+     - カテゴリ: `casual_chat`, `empathy_support`, `quick_faq`
+
+- **API連携**:
+  - `POST /api/chat` で `routing_mode: "auto"` または `compare_model: "dynamic-router"` を指定時に自動発動。
+  - レスポンスに `routed_info: { "model_id": string, "category": string, "reason": string }` を含めて返却。
+  - フロントエンド UI（ChatMessage コンポーネント）に `🧭 動的ルーティング: <モデル名> (<判定理由>)` バッジを美しく表示。
+
 ---
 
 ## 7. 仕様更新チェックリスト（開発者・AI 共通運用ルール）
