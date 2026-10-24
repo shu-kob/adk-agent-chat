@@ -27,4 +27,22 @@ describe('ChatMessage Component', () => {
     expect(screen.getByText('Hello!')).toBeInTheDocument();
     expect(screen.getByText('12:01')).toBeInTheDocument();
   });
+
+  it('renders dynamic routing badge with category when routedInfo is present', () => {
+    const msg: Message = {
+      id: '3',
+      sender: 'assistant',
+      content: '分析結果をお伝えします。',
+      timestamp: '12:02',
+      model: 'gemini-3.8-flash',
+      routedInfo: {
+        model_id: 'gemini-3.8-flash',
+        category: 'complex_reasoning',
+        reason: '高度な論理推論・専門タスクと判定',
+      },
+    };
+    render(<ChatMessage message={msg} />);
+    expect(screen.getByText(/gemini-3.8-flash/)).toBeInTheDocument();
+    expect(screen.getByText(/🧭 動的ルーティング/)).toBeInTheDocument();
+  });
 });

@@ -52,6 +52,7 @@ class ChatRequest(BaseModel):
     user_id: Optional[str] = Field(default="default_user", description="ユーザー識別子")
     ab_test_mode: Optional[str] = Field(default="auto", description="A/Bテストの表示モード ('always', 'auto', 'off')")
     compare_model: Optional[str] = Field(default="random", description="Side-by-Side 比較対象モデル ('gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-4-argon', 'random')")
+    routing_mode: Optional[str] = Field(default="manual", description="ルーティングモード ('manual' または 'auto')")
 
 class ChatResponse(BaseModel):
     """
@@ -60,11 +61,13 @@ class ChatResponse(BaseModel):
     - session_id: 使用されたセッションID
     - model: 応答生成に使用されたモデル名
     - ab_test: Side-by-Side 比較用データ (A/Bテスト発生時のみ付与)
+    - routed_info: 動的ルーティング判定情報 (routing_mode='auto' 時)
     """
     reply: str
     session_id: str
     model: str
     ab_test: Optional[Dict[str, Any]] = None
+    routed_info: Optional[Dict[str, Any]] = None
 
 class FeedbackRequest(BaseModel):
     """
@@ -157,16 +160,25 @@ async def chat_endpoint(request: ChatRequest):
     # 1. 直前までの会話履歴コンテキストを取得
     context = agent_manager.get_conversation_context(session_id)
 
-    # 2. 応答生成およびレイテンシ計測
+    # 2. 動的モデルルーティング判定 (routing_mode='auto' 時)
+    routed_info = None
+    target_model = config.GEMINI_MODEL
+    if request.routing_mode == "auto":
+        from eval.traffic.router import route_model_for_query
+        routed_info = route_model_for_query(clean_message)
+        target_model = routed_info["model_id"]
+
+    # 3. 応答生成およびレイテンシ計測
     start_t = time.time()
     reply = await agent_manager.generate_response(
         session_id=session_id,
         prompt=clean_message,
-        user_id=user_id
+        user_id=user_id,
+        model_name=target_model
     )
     latency_ms = int((time.time() - start_t) * 1000)
 
-    # 3. 会話履歴へのターン追加
+    # 4. 会話履歴へのターン追加
     agent_manager.append_conversation_turn(session_id, "user", clean_message)
     agent_manager.append_conversation_turn(session_id, "assistant", reply)
 
@@ -215,7 +227,7 @@ async def chat_endpoint(request: ChatRequest):
                 input_text=clean_message,
                 conversation_context=context,
                 production_output=reply,
-                production_model_id=config.GEMINI_MODEL,
+                production_model_id=target_model,
                 production_latency_ms=latency_ms,
                 instruction=instruction,
                 generation_config={"temperature": 0.0},
@@ -231,7 +243,7 @@ async def chat_endpoint(request: ChatRequest):
                 input_text=clean_message,
                 conversation_context=context,
                 production_output=reply,
-                production_model_id=config.GEMINI_MODEL,
+                production_model_id=target_model,
                 production_latency_ms=latency_ms,
                 instruction=instruction,
                 generation_config={"temperature": 0.0},
@@ -243,8 +255,9 @@ async def chat_endpoint(request: ChatRequest):
     return ChatResponse(
         reply=reply,
         session_id=session_id,
-        model=config.GEMINI_MODEL,
-        ab_test=ab_test_payload
+        model=target_model,
+        ab_test=ab_test_payload,
+        routed_info=routed_info
     )
 
 

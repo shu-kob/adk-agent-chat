@@ -16,6 +16,7 @@ export const App: React.FC = () => {
   });
   const [abTestMode, setAbTestMode] = useState<'auto' | 'always' | 'off'>('auto');
   const [compareModel, setCompareModel] = useState<string>('random');
+  const [routingMode, setRoutingMode] = useState<'auto' | 'manual'>('auto');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -97,6 +98,7 @@ export const App: React.FC = () => {
           user_id: 'default_user',
           ab_test_mode: abTestMode,
           compare_model: compareModel,
+          routing_mode: routingMode,
         }),
       });
 
@@ -117,6 +119,7 @@ export const App: React.FC = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         model: data.model,
         abTest: data.ab_test,
+        routedInfo: data.routed_info,
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -174,6 +177,8 @@ export const App: React.FC = () => {
         compareModel={compareModel}
         onChangeCompareModel={setCompareModel}
         compareOptions={config.compare_models}
+        routingMode={routingMode}
+        onChangeRoutingMode={setRoutingMode}
         onResetSession={handleResetSession}
         isLoading={isLoading}
       />

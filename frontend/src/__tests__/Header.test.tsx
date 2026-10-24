@@ -11,17 +11,43 @@ describe('Header Component', () => {
         onChangeAbTestMode={vi.fn()}
         compareModel="random"
         onChangeCompareModel={vi.fn()}
+        routingMode="auto"
+        onChangeRoutingMode={vi.fn()}
         onResetSession={vi.fn()}
         isLoading={false}
       />
     );
     
     expect(screen.getByText('ADK Agent Chat')).toBeInTheDocument();
-    expect(screen.getByText('標準: gemini-3.8-flash')).toBeInTheDocument();
+    expect(screen.getByText('🧭 動的配信')).toBeInTheDocument();
     expect(screen.getByText('比較対象:')).toBeInTheDocument();
     expect(screen.getByText('🎲 ランダム比較モード')).toBeInTheDocument();
+    expect(screen.getByText('ルーティング:')).toBeInTheDocument();
     expect(screen.getByText('会話をリセット')).toBeInTheDocument();
     expect(screen.getByText('A/Bテスト:')).toBeInTheDocument();
+  });
+
+  it('triggers onChangeRoutingMode when routing mode is changed', () => {
+    const handleRoutingChange = vi.fn();
+    render(
+      <Header
+        modelName="gemini-3.8-flash"
+        abTestMode="auto"
+        onChangeAbTestMode={vi.fn()}
+        compareModel="random"
+        onChangeCompareModel={vi.fn()}
+        routingMode="auto"
+        onChangeRoutingMode={handleRoutingChange}
+        onResetSession={vi.fn()}
+        isLoading={false}
+      />
+    );
+
+    const selects = screen.getAllByRole('combobox');
+    // 3番目の select がルーティングモード
+    const routingSelect = selects[2];
+    fireEvent.change(routingSelect, { target: { value: 'manual' } });
+    expect(handleRoutingChange).toHaveBeenCalledWith('manual');
   });
 
   it('triggers onChangeCompareModel when compare target is changed', () => {
@@ -33,6 +59,8 @@ describe('Header Component', () => {
         onChangeAbTestMode={vi.fn()}
         compareModel="random"
         onChangeCompareModel={handleCompareChange}
+        routingMode="manual"
+        onChangeRoutingMode={vi.fn()}
         onResetSession={vi.fn()}
         isLoading={false}
       />
@@ -54,6 +82,8 @@ describe('Header Component', () => {
         onChangeAbTestMode={vi.fn()}
         compareModel="random"
         onChangeCompareModel={vi.fn()}
+        routingMode="auto"
+        onChangeRoutingMode={vi.fn()}
         onResetSession={handleReset}
         isLoading={false}
       />

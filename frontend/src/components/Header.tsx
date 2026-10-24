@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, RotateCcw, Sparkles, Scale, GitCompare } from 'lucide-react';
+import { Bot, RotateCcw, Sparkles, Scale, GitCompare, Compass } from 'lucide-react';
 import { CompareModelOption } from '../types';
 
 const DEFAULT_COMPARE_OPTIONS: CompareModelOption[] = [
@@ -16,6 +16,8 @@ interface HeaderProps {
   compareModel: string;
   onChangeCompareModel: (model: string) => void;
   compareOptions?: CompareModelOption[];
+  routingMode: 'auto' | 'manual';
+  onChangeRoutingMode: (mode: 'auto' | 'manual') => void;
   onResetSession: () => void;
   isLoading: boolean;
 }
@@ -27,6 +29,8 @@ export const Header: React.FC<HeaderProps> = ({
   compareModel,
   onChangeCompareModel,
   compareOptions = DEFAULT_COMPARE_OPTIONS,
+  routingMode,
+  onChangeRoutingMode,
   onResetSession,
   isLoading,
 }) => {
@@ -83,9 +87,26 @@ export const Header: React.FC<HeaderProps> = ({
           </select>
         </div>
 
-        <div className="badge-model" title="標準ベースラインモデル">
+        {/* Dynamic Routing Mode Selector */}
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-xs"
+          title="クエリの性質に応じて最適モデルを自動選定（高度推論: 3.8-flash / 日常共感: 3.5-lite）"
+        >
+          <Compass size={13} className="text-cyan-400" />
+          <span className="font-medium text-cyan-200">ルーティング:</span>
+          <select
+            value={routingMode}
+            onChange={(e) => onChangeRoutingMode(e.target.value as any)}
+            className="bg-transparent text-white font-semibold cursor-pointer outline-none text-xs"
+          >
+            <option value="auto" className="bg-slate-900 text-white">🧭 動的 (Contextual)</option>
+            <option value="manual" className="bg-slate-900 text-white">🔒 固定 ({modelName})</option>
+          </select>
+        </div>
+
+        <div className="badge-model" title={routingMode === 'auto' ? '動的ルーティング有効 (3.8-flash ⇄ 3.5-flash-lite)' : '固定モデル'}>
           <Sparkles size={14} className="sparkle-icon" />
-          <span>標準: {modelName}</span>
+          <span>{routingMode === 'auto' ? '🧭 動的配信' : `標準: ${modelName}`}</span>
           <span className="status-dot"></span>
         </div>
 

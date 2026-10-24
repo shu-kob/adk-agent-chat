@@ -113,17 +113,25 @@ class ChatAgentManager:
                 logger.error(f"セッション {session_id} の取得/作成中にエラーが発生しました: {e}")
         return None
 
-    async def generate_response(self, session_id: str, prompt: str, user_id: str = "default_user") -> str:
+    async def generate_response(
+        self,
+        session_id: str,
+        prompt: str,
+        user_id: str = "default_user",
+        model_name: Optional[str] = None
+    ) -> str:
         """
         ユーザープロンプトを処理し、AI からのテキスト応答を生成して返却する。
         
         :param session_id: 会話履歴を保持するセッションID
         :param prompt: ユーザー入力テキスト
         :param user_id: ユーザー識別子
+        :param model_name: 指定モデル名（省略時は self.model_name）
         :return: 生成された応答文字列
         :raises RuntimeError: allow_fallback=False かつ ADK 実行失敗時に例外を送出
         """
         self.last_execution_path = None
+        active_model = model_name or self.model_name
 
         # 認証情報の事前検証
         if not config.USE_VERTEXAI and not config.GOOGLE_API_KEY:
@@ -201,7 +209,7 @@ class ChatAgentManager:
                 # 同期 API 呼び出しをスレッドプールへ委譲し、FastAPI イベントループのブロックを防止
                 response = await asyncio.to_thread(
                     client.models.generate_content,
-                    model=self.model_name,
+                    model=active_model,
                     contents=prompt
                 )
                 self.last_execution_path = "genai_sdk_fallback"
@@ -210,7 +218,7 @@ class ChatAgentManager:
                 logger.error(f"GenAI SDK 実行エラー: {e}")
                 if not self.allow_fallback:
                     raise
-                return f"Error communicating with Gemini ({self.model_name}): {str(e)}"
+                return f"Error communicating with Gemini ({active_model}): {str(e)}"
 
         if not self.allow_fallback:
             raise RuntimeError("Neither google-adk nor google-genai could process the request.")

@@ -71,14 +71,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, onVoteAbTest 
           {isAssistant && message.model && !message.abTest && (
             <span
               className="message-model-badge"
-              title={`応答生成モデル: ${message.model}`}
+              title={message.routedInfo ? `動的ルーティング理由: ${message.routedInfo.reason}` : `応答生成モデル: ${message.model}`}
               style={{
                 fontSize: '11px',
-                padding: '1px 8px',
+                padding: '2px 8px',
                 borderRadius: '12px',
-                background: 'rgba(99, 102, 241, 0.12)',
-                color: '#a5b4fc',
-                border: '1px solid rgba(99, 102, 241, 0.28)',
+                background: message.routedInfo ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.12)',
+                color: message.routedInfo ? '#34d399' : '#a5b4fc',
+                border: message.routedInfo ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(99, 102, 241, 0.28)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
@@ -86,8 +86,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, onVoteAbTest 
                 letterSpacing: '0.02em',
               }}
             >
-              <Cpu size={12} color="#818cf8" />
+              <Cpu size={12} color={message.routedInfo ? '#34d399' : '#818cf8'} />
               <span>{message.model}</span>
+              {message.routedInfo && (
+                <span style={{ fontSize: '10px', color: '#6ee7b7', borderLeft: '1px solid rgba(16, 185, 129, 0.3)', paddingLeft: '4px' }}>
+                  🧭 動的ルーティング
+                </span>
+              )}
             </span>
           )}
         </div>

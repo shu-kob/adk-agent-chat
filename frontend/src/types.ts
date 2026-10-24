@@ -14,6 +14,12 @@ export interface ABTestData {
   };
 }
 
+export interface RoutedInfo {
+  model_id: string;
+  category: string;
+  reason: string;
+}
+
 export interface Message {
   id: string;
   sender: 'user' | 'assistant' | 'system';
@@ -23,6 +29,7 @@ export interface Message {
   model?: string;
   abTest?: ABTestData;
   feedbackSelected?: 'A' | 'B' | 'tie';
+  routedInfo?: RoutedInfo;
 }
 
 export interface ChatResponse {
@@ -30,6 +37,7 @@ export interface ChatResponse {
   session_id: string;
   model: string;
   ab_test?: ABTestData;
+  routed_info?: RoutedInfo;
 }
 
 export interface CompareModelOption {
