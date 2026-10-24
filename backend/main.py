@@ -51,6 +51,7 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, description="会話メモリ用のユニークなセッションID")
     user_id: Optional[str] = Field(default="default_user", description="ユーザー識別子")
     ab_test_mode: Optional[str] = Field(default="auto", description="A/Bテストの表示モード ('always', 'auto', 'off')")
+    compare_model: Optional[str] = Field(default="random", description="Side-by-Side 比較対象モデル ('gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-4-argon', 'random')")
 
 class ChatResponse(BaseModel):
     """
@@ -108,12 +109,19 @@ async def health_check():
 @app.get("/api/config")
 async def get_config():
     """
-    フロントエンド向けの設定情報（モデル名、APIキー設定有無）を返却するエンドポイント
+    フロントエンド向けの設定情報（標準モデル名、APIキー設定有無、比較可能モデルリスト）を返却するエンドポイント
     """
     has_api_key = bool(config.GOOGLE_API_KEY) or config.USE_VERTEXAI
     return {
         "model": config.GEMINI_MODEL,
-        "has_api_key": has_api_key
+        "has_api_key": has_api_key,
+        "default_compare_model": "random",
+        "compare_models": [
+            {"id": "random", "name": "🎲 ランダム比較モード"},
+            {"id": "gemini-3.5-flash-lite", "name": "3.5-flash-lite"},
+            {"id": "gemini-3.5-flash", "name": "3.5-flash"},
+            {"id": "gemini-4-argon", "name": "4-argon"},
+        ]
     }
 
 import time
@@ -210,7 +218,8 @@ async def chat_endpoint(request: ChatRequest):
                 production_model_id=config.GEMINI_MODEL,
                 production_latency_ms=latency_ms,
                 instruction=instruction,
-                generation_config={"temperature": 0.0}
+                generation_config={"temperature": 0.0},
+                candidate_model_id=request.compare_model
             )
         except Exception:
             pass
@@ -225,7 +234,8 @@ async def chat_endpoint(request: ChatRequest):
                 production_model_id=config.GEMINI_MODEL,
                 production_latency_ms=latency_ms,
                 instruction=instruction,
-                generation_config={"temperature": 0.0}
+                generation_config={"temperature": 0.0},
+                candidate_model_id=request.compare_model
             )
         except Exception:
             pass

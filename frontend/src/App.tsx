@@ -11,10 +11,11 @@ export const App: React.FC = () => {
     return sessionStorage.getItem('adk_chat_session_id') || `session_${Date.now()}`;
   });
   const [config, setConfig] = useState<AppConfig>({
-    model: 'gemini-3.5-flash-lite',
+    model: 'gemini-3.8-flash',
     has_api_key: false,
   });
   const [abTestMode, setAbTestMode] = useState<'auto' | 'always' | 'off'>('auto');
+  const [compareModel, setCompareModel] = useState<string>('random');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -32,6 +33,9 @@ export const App: React.FC = () => {
         if (res.ok) {
           const data: AppConfig = await res.json();
           setConfig(data);
+          if (data.default_compare_model) {
+            setCompareModel(data.default_compare_model);
+          }
         }
       } catch (e) {
         console.warn('Backend API config fetch failed, using defaults.', e);
@@ -92,6 +96,7 @@ export const App: React.FC = () => {
           session_id: sessionId,
           user_id: 'default_user',
           ab_test_mode: abTestMode,
+          compare_model: compareModel,
         }),
       });
 
@@ -166,6 +171,9 @@ export const App: React.FC = () => {
         modelName={config.model}
         abTestMode={abTestMode}
         onChangeAbTestMode={setAbTestMode}
+        compareModel={compareModel}
+        onChangeCompareModel={setCompareModel}
+        compareOptions={config.compare_models}
         onResetSession={handleResetSession}
         isLoading={isLoading}
       />

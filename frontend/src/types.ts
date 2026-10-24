@@ -32,7 +32,14 @@ export interface ChatResponse {
   ab_test?: ABTestData;
 }
 
+export interface CompareModelOption {
+  id: string;
+  name: string;
+}
+
 export interface AppConfig {
   model: string;
   has_api_key: boolean;
+  default_compare_model?: string;
+  compare_models?: CompareModelOption[];
 }
