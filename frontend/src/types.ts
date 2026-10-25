@@ -65,6 +65,21 @@ export interface BatchSavings {
   cost_per_1000_queries_jpy: number;
 }
 
+export interface BatchMetrics {
+  format_error_count: number;
+  consistency_score: number;
+  avg_char_length: number;
+  rate_limit_errors: number;
+  pass_rate: number;
+}
+
+export interface BatchPreviewItem {
+  custom_id: string;
+  input_text: string;
+  original_output: string;
+  batch_output: string;
+}
+
 export interface BatchFinOpsResponse {
   savings: BatchSavings;
   report_markdown: string;
@@ -81,5 +96,7 @@ export interface BatchJobResponse {
     output_file_path: string;
     submitted_at: string;
     savings: BatchSavings;
+    metrics?: BatchMetrics;
+    preview_items?: BatchPreviewItem[];
   };
 }

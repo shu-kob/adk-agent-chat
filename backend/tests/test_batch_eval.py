@@ -45,6 +45,14 @@ class TestBatchFinOpsAcceptanceCriteria:
         assert job_result["status"] in ["submitted", "completed", "running"]
         assert job_result["total_queries"] >= 3
         assert "input_file_path" in job_result
+        # AC: 品質・回帰検証メトリクスと出力プレビューの検証
+        assert "metrics" in job_result
+        assert job_result["metrics"]["format_error_count"] == 0
+        assert "consistency_score" in job_result["metrics"]
+        assert "preview_items" in job_result
+        assert len(job_result["preview_items"]) >= 1
+        assert "input_text" in job_result["preview_items"][0]
+        assert "batch_output" in job_result["preview_items"][0]
 
 
 class TestBatchApiEndpoints:
@@ -70,3 +78,5 @@ class TestBatchApiEndpoints:
         assert data["status"] == "ok"
         assert "job" in data
         assert "job_id" in data["job"]
+        assert "metrics" in data["job"]
+        assert "preview_items" in data["job"]
