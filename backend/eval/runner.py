@@ -63,8 +63,10 @@ DEFAULT_INSTRUCTION: str = "You are a helpful, friendly, and highly intelligent 
 # 概算トークン単価 (USD per 1M tokens) - 実費トラッキング用
 MODEL_PRICING: Dict[str, Dict[str, float]] = {
     "gemini-3.5-flash-lite": {"input": 0.075, "output": 0.30},
+    "gemini-3.5-flash": {"input": 0.10, "output": 0.40},
     "gemini-3.7-flash": {"input": 0.15, "output": 0.60},
     "gemini-3.8-flash": {"input": 0.15, "output": 0.60},
+    "gemini-4-argon": {"input": 0.20, "output": 0.80},
     "gemini-3.1-pro-preview": {"input": 1.25, "output": 5.00},
     "default": {"input": 0.15, "output": 0.60}
 }

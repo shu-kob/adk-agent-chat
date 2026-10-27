@@ -3,7 +3,8 @@ import { Sparkles, MessageSquare, Code, Zap } from 'lucide-react';
 import { Header } from './components/Header';
 import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';
-import { Message, AppConfig } from './types';
+import { BatchFinOpsModal } from './components/BatchFinOpsModal';
+import { Message, AppConfig, BatchSavings, BatchFinOpsResponse, BatchJobResponse } from './types';
 
 export const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -11,11 +12,16 @@ export const App: React.FC = () => {
     return sessionStorage.getItem('adk_chat_session_id') || `session_${Date.now()}`;
   });
   const [config, setConfig] = useState<AppConfig>({
-    model: 'gemini-3.5-flash-lite',
+    model: 'gemini-3.8-flash',
     has_api_key: false,
   });
   const [abTestMode, setAbTestMode] = useState<'auto' | 'always' | 'off'>('auto');
+  const [compareModel, setCompareModel] = useState<string>('random');
+  const [routingMode, setRoutingMode] = useState<'auto' | 'manual'>('auto');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isFinOpsOpen, setIsFinOpsOpen] = useState<boolean>(false);
+  const [finOpsSavings, setFinOpsSavings] = useState<BatchSavings | null>(null);
+  const [isFinOpsLoading, setIsFinOpsLoading] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -32,6 +38,9 @@ export const App: React.FC = () => {
         if (res.ok) {
           const data: AppConfig = await res.json();
           setConfig(data);
+          if (data.default_compare_model) {
+            setCompareModel(data.default_compare_model);
+          }
         }
       } catch (e) {
         console.warn('Backend API config fetch failed, using defaults.', e);
@@ -92,6 +101,8 @@ export const App: React.FC = () => {
           session_id: sessionId,
           user_id: 'default_user',
           ab_test_mode: abTestMode,
+          compare_model: compareModel,
+          routing_mode: routingMode,
         }),
       });
 
@@ -112,6 +123,7 @@ export const App: React.FC = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         model: data.model,
         abTest: data.ab_test,
+        routedInfo: data.routed_info,
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -156,6 +168,44 @@ export const App: React.FC = () => {
     setMessages([]);
   };
 
+  const handleOpenFinOps = async () => {
+    setIsFinOpsOpen(true);
+    setIsFinOpsLoading(true);
+    try {
+      const res = await fetch('/api/eval/batch/finops');
+      if (res.ok) {
+        const data: BatchFinOpsResponse = await res.json();
+        setFinOpsSavings(data.savings);
+      }
+    } catch (e) {
+      console.warn('FinOps report fetch failed:', e);
+    } finally {
+      setIsFinOpsLoading(false);
+    }
+  };
+
+  const handleSubmitBatchJob = async (): Promise<BatchJobResponse | void> => {
+    try {
+      const res = await fetch('/api/eval/batch/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          limit: 100,
+          model_id: config.model
+        })
+      });
+      if (res.ok) {
+        const data: BatchJobResponse = await res.json();
+        if (data.job?.savings) {
+          setFinOpsSavings(data.job.savings);
+        }
+        return data;
+      }
+    } catch (e) {
+      console.error('Batch job submit failed:', e);
+    }
+  };
+
   const handleSuggestionClick = (prompt: string) => {
     handleSendMessage(prompt);
   };
@@ -166,8 +216,22 @@ export const App: React.FC = () => {
         modelName={config.model}
         abTestMode={abTestMode}
         onChangeAbTestMode={setAbTestMode}
+        compareModel={compareModel}
+        onChangeCompareModel={setCompareModel}
+        compareOptions={config.compare_models}
+        routingMode={routingMode}
+        onChangeRoutingMode={setRoutingMode}
+        onOpenFinOps={handleOpenFinOps}
         onResetSession={handleResetSession}
         isLoading={isLoading}
+      />
+
+      <BatchFinOpsModal
+        isOpen={isFinOpsOpen}
+        onClose={() => setIsFinOpsOpen(false)}
+        savings={finOpsSavings}
+        onSubmitJob={handleSubmitBatchJob}
+        isLoading={isFinOpsLoading}
       />
 
       <main className="chat-main">

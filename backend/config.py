@@ -30,11 +30,15 @@ GCP_LOCATION: str = os.getenv("GOOGLE_CLOUD_LOCATION", "global").strip().strip('
 # ==============================================================================
 # チャットボット モデル & サーバー設定
 # ==============================================================================
-# チャットで使用するデフォルトの Gemini モデル名 (Vertex AI の場合は 2.5-flash、AI Studio の場合は 3.5-flash-lite を既定とする)
-GEMINI_MODEL: str = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-2.5-flash" if USE_VERTEXAI else "gemini-3.5-flash-lite"
-)
+# チャットで使用するデフォルトの Gemini モデル名 (標準: gemini-3.8-flash)
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+
+# Side-by-Side 比較対象として選択可能なモデルリスト
+AVAILABLE_COMPARE_MODELS: list[str] = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-4-argon",
+]
 
 # FastAPI サーバーのバインドホストアドレス (デフォルト: 0.0.0.0)
 HOST: str = os.getenv("HOST", "0.0.0.0")

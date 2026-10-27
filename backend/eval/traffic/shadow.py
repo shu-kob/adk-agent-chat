@@ -42,6 +42,49 @@ DEFAULT_SHADOW_LOG_PATH = os.path.join(
 )
 
 
+def normalize_model_id(model_id: Optional[str]) -> str:
+    """
+    モデル名のエイリアスを正式な識別子に正規化する。
+    例: '3.5-flash-lite' -> 'gemini-3.5-flash-lite'
+        '3.5-flash' -> 'gemini-3.5-flash'
+        '4-argon' -> 'gemini-4-argon'
+    """
+    if not model_id:
+        return config.SHADOW_MODEL_ID
+
+    clean = model_id.strip()
+    alias_map = {
+        "3.5-flash-lite": "gemini-3.5-flash-lite",
+        "3.5-flash": "gemini-3.5-flash",
+        "4-argon": "gemini-4-argon",
+        "3.8-flash": "gemini-3.8-flash",
+    }
+    if clean in alias_map:
+        return alias_map[clean]
+    if clean != "random" and not clean.startswith("gemini-"):
+        return f"gemini-{clean}"
+    return clean
+
+
+def resolve_candidate_model(requested_model: Optional[str], default_model: str) -> str:
+    """
+    リクエストされた比較対象モデルを解決する。
+    'random' の場合は AVAILABLE_COMPARE_MODELS からランダムに選択。
+    """
+    target = requested_model or default_model
+    normalized = normalize_model_id(target)
+
+    if normalized == "random":
+        choices = getattr(
+            config,
+            "AVAILABLE_COMPARE_MODELS",
+            ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-4-argon"]
+        )
+        return random.choice(choices)
+
+    return normalized
+
+
 class ShadowRunner:
     """
     本番トラフィックに対するオンライン・シャドウテスト実行管理クラス
@@ -119,7 +162,8 @@ class ShadowRunner:
         production_model_id: str,
         production_latency_ms: int,
         instruction: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        candidate_model_id: Optional[str] = None
     ) -> Optional[asyncio.Task]:
         """
         本番リクエストの完了時に呼び出され、条件合致時に非同期タスク (asyncio.create_task) で
@@ -141,7 +185,8 @@ class ShadowRunner:
                     production_model_id=production_model_id,
                     production_latency_ms=production_latency_ms,
                     instruction=instruction,
-                    generation_config=generation_config
+                    generation_config=generation_config,
+                    candidate_model_id=candidate_model_id
                 )
             )
             return task
@@ -158,12 +203,14 @@ class ShadowRunner:
         production_model_id: str,
         production_latency_ms: int,
         instruction: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        candidate_model_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         候補モデルに対して非同期にプロンプトを送信し、結果を本番出力とペアにして記録する。
         例外が発生した場合でも本番に影響を与えないよう内部でキャッチしてエラーログとして記録する。
         """
+        target_model = resolve_candidate_model(candidate_model_id, self.candidate_model_id)
         gen_cfg = generation_config or {}
         temperature = gen_cfg.get("temperature", 0.0)
         seed = gen_cfg.get("seed", 42)
@@ -179,8 +226,8 @@ class ShadowRunner:
         cost_usd = 0.0
         status = "success"
         error_message = None
-        actual_model = self.candidate_model_id
-        actual_model_display = self.candidate_model_id
+        actual_model = target_model
+        actual_model_display = target_model
 
         start_time = time.time()
 
@@ -206,7 +253,7 @@ class ShadowRunner:
             client = self._get_client()
             if client is None:
                 # モック環境または SDK 不可時
-                candidate_output = f"[MOCK SHADOW] Candidate {self.candidate_model_id} response"
+                candidate_output = f"[MOCK SHADOW] Candidate {target_model} response"
                 prompt_tokens = 40
                 candidate_tokens = 20
                 finish_reason = "STOP"
@@ -214,7 +261,7 @@ class ShadowRunner:
                 # asyncio.to_thread で同期 SDK 呼び出しをノンブロッキング実行 (タイムアウト保護付き)
                 def _call():
                     return client.models.generate_content(
-                        model=self.candidate_model_id,
+                        model=target_model,
                         contents=merged_prompt,
                         config=config_obj
                     )
@@ -237,12 +284,12 @@ class ShadowRunner:
                     prompt_tokens = getattr(um, "prompt_token_count", 0) or 0
                     candidate_tokens = getattr(um, "candidates_token_count", 0) or 0
 
-            cost_usd = calculate_cost(self.candidate_model_id, prompt_tokens, candidate_tokens)
+            cost_usd = calculate_cost(target_model, prompt_tokens, candidate_tokens)
 
         except Exception as e:
-            logger.warning(f"Primary candidate model {self.candidate_model_id} failed: {e}. Attempting fallback...")
+            logger.warning(f"Primary candidate model {target_model} failed: {e}. Attempting fallback...")
             # 429 Quota エラー等の場合、確実に動作するフォールバックモデルで再試行
-            fallback_model = "gemini-3.5-flash-lite" if self.candidate_model_id != "gemini-3.5-flash-lite" else "gemini-2.5-flash"
+            fallback_model = "gemini-3.5-flash-lite" if target_model != "gemini-3.5-flash-lite" else "gemini-2.5-flash"
             actual_model = fallback_model
             try:
                 client = self._get_client()
@@ -270,17 +317,17 @@ class ShadowRunner:
                     cost_usd = calculate_cost(fallback_model, prompt_tokens, candidate_tokens)
                     status = "success"
                     # フォールバックした事実を明記
-                    actual_model_display = f"{fallback_model} (fallback from {self.candidate_model_id})"
+                    actual_model_display = f"{fallback_model} (fallback from {target_model})"
                 else:
                     status = "error"
                     error_message = str(e)
             except Exception as fb_err:
                 status = "error"
                 error_message = f"Primary: {e} | Fallback: {fb_err}"
-                logger.error(f"Shadow test execution error for model {self.candidate_model_id}: {error_message}")
+                logger.error(f"Shadow test execution error for model {target_model}: {error_message}")
         else:
-            actual_model = self.candidate_model_id
-            actual_model_display = self.candidate_model_id
+            actual_model = target_model
+            actual_model_display = target_model
 
         cand_latency_ms = int((time.time() - start_time) * 1000)
 
@@ -367,7 +414,8 @@ class ShadowRunner:
         production_model_id: str,
         production_latency_ms: int,
         instruction: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        candidate_model_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Side-by-Side 比較用のブラインド A/B テストデータを生成する。
@@ -384,7 +432,8 @@ class ShadowRunner:
             production_model_id=production_model_id,
             production_latency_ms=production_latency_ms,
             instruction=instruction,
-            generation_config=generation_config
+            generation_config=generation_config,
+            candidate_model_id=candidate_model_id
         )
 
         candidate_output = record.get("candidate", {}).get("output_text", "")

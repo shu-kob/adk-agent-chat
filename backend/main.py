@@ -51,6 +51,8 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, description="会話メモリ用のユニークなセッションID")
     user_id: Optional[str] = Field(default="default_user", description="ユーザー識別子")
     ab_test_mode: Optional[str] = Field(default="auto", description="A/Bテストの表示モード ('always', 'auto', 'off')")
+    compare_model: Optional[str] = Field(default="random", description="Side-by-Side 比較対象モデル ('gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-4-argon', 'random')")
+    routing_mode: Optional[str] = Field(default="manual", description="ルーティングモード ('manual' または 'auto')")
 
 class ChatResponse(BaseModel):
     """
@@ -59,11 +61,13 @@ class ChatResponse(BaseModel):
     - session_id: 使用されたセッションID
     - model: 応答生成に使用されたモデル名
     - ab_test: Side-by-Side 比較用データ (A/Bテスト発生時のみ付与)
+    - routed_info: 動的ルーティング判定情報 (routing_mode='auto' 時)
     """
     reply: str
     session_id: str
     model: str
     ab_test: Optional[Dict[str, Any]] = None
+    routed_info: Optional[Dict[str, Any]] = None
 
 class FeedbackRequest(BaseModel):
     """
@@ -74,6 +78,13 @@ class FeedbackRequest(BaseModel):
     selected_choice: str = Field(..., description="'A', 'B', または 'tie'")
     mapping: Dict[str, str] = Field(..., description="A/Bとモデルキーの対応辞書")
     user_comment: Optional[str] = None
+
+class BatchSubmitRequest(BaseModel):
+    """
+    Gemini Batch API 実行投入リクエストモデル
+    """
+    limit: Optional[int] = Field(default=100, description="処理対象クエリ件数上限")
+    model_id: Optional[str] = Field(default=None, description="バッチ実行対象のモデルID")
 
 class ResetSessionRequest(BaseModel):
     """
@@ -108,12 +119,19 @@ async def health_check():
 @app.get("/api/config")
 async def get_config():
     """
-    フロントエンド向けの設定情報（モデル名、APIキー設定有無）を返却するエンドポイント
+    フロントエンド向けの設定情報（標準モデル名、APIキー設定有無、比較可能モデルリスト）を返却するエンドポイント
     """
     has_api_key = bool(config.GOOGLE_API_KEY) or config.USE_VERTEXAI
     return {
         "model": config.GEMINI_MODEL,
-        "has_api_key": has_api_key
+        "has_api_key": has_api_key,
+        "default_compare_model": "random",
+        "compare_models": [
+            {"id": "random", "name": "🎲 ランダム比較モード"},
+            {"id": "gemini-3.5-flash-lite", "name": "3.5-flash-lite"},
+            {"id": "gemini-3.5-flash", "name": "3.5-flash"},
+            {"id": "gemini-4-argon", "name": "4-argon"},
+        ]
     }
 
 import time
@@ -149,16 +167,25 @@ async def chat_endpoint(request: ChatRequest):
     # 1. 直前までの会話履歴コンテキストを取得
     context = agent_manager.get_conversation_context(session_id)
 
-    # 2. 応答生成およびレイテンシ計測
+    # 2. 動的モデルルーティング判定 (routing_mode='auto' 時)
+    routed_info = None
+    target_model = config.GEMINI_MODEL
+    if request.routing_mode == "auto":
+        from eval.traffic.router import route_model_for_query
+        routed_info = route_model_for_query(clean_message)
+        target_model = routed_info["model_id"]
+
+    # 3. 応答生成およびレイテンシ計測
     start_t = time.time()
     reply = await agent_manager.generate_response(
         session_id=session_id,
         prompt=clean_message,
-        user_id=user_id
+        user_id=user_id,
+        model_name=target_model
     )
     latency_ms = int((time.time() - start_t) * 1000)
 
-    # 3. 会話履歴へのターン追加
+    # 4. 会話履歴へのターン追加
     agent_manager.append_conversation_turn(session_id, "user", clean_message)
     agent_manager.append_conversation_turn(session_id, "assistant", reply)
 
@@ -207,10 +234,11 @@ async def chat_endpoint(request: ChatRequest):
                 input_text=clean_message,
                 conversation_context=context,
                 production_output=reply,
-                production_model_id=config.GEMINI_MODEL,
+                production_model_id=target_model,
                 production_latency_ms=latency_ms,
                 instruction=instruction,
-                generation_config={"temperature": 0.0}
+                generation_config={"temperature": 0.0},
+                candidate_model_id=request.compare_model
             )
         except Exception:
             pass
@@ -222,10 +250,11 @@ async def chat_endpoint(request: ChatRequest):
                 input_text=clean_message,
                 conversation_context=context,
                 production_output=reply,
-                production_model_id=config.GEMINI_MODEL,
+                production_model_id=target_model,
                 production_latency_ms=latency_ms,
                 instruction=instruction,
-                generation_config={"temperature": 0.0}
+                generation_config={"temperature": 0.0},
+                candidate_model_id=request.compare_model
             )
         except Exception:
             pass
@@ -233,8 +262,9 @@ async def chat_endpoint(request: ChatRequest):
     return ChatResponse(
         reply=reply,
         session_id=session_id,
-        model=config.GEMINI_MODEL,
-        ab_test=ab_test_payload
+        model=target_model,
+        ab_test=ab_test_payload,
+        routed_info=routed_info
     )
 
 
@@ -301,6 +331,19 @@ async def get_batch_finops_report(limit: Optional[int] = 100):
     return {
         "savings": savings,
         "report_markdown": report_md
+    }
+
+
+@app.post("/api/eval/batch/submit")
+async def submit_batch_job_endpoint(request: BatchSubmitRequest):
+    """
+    蓄積トラフィックから Gemini Batch API 向けリクエストファイルを生成し、バッチ推論ジョブを実行するエンドポイント
+    """
+    batch_mgr = GeminiBatchManager(candidate_model_id=request.model_id)
+    job_result = batch_mgr.submit_batch_job(limit=request.limit, model_id=request.model_id)
+    return {
+        "status": "ok",
+        "job": job_result
     }
 
 @app.post("/api/sessions/reset", response_model=ResetSessionResponse)
