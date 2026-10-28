@@ -1,7 +1,19 @@
+/**
+ * フロントエンド上部メニューバー（ヘッダー）コンポーネント (frontend/src/components/Header.tsx)
+ *
+ * 【役割】
+ * - アプリケーションタイトルとブランドアイコンの表示
+ * - A/Bテストモード（自動 / 常時オン / オフ）の切り替え
+ * - Side-by-Side 比較対象モデルの選択
+ * - 動的モデルルーティングモード（自動 / 固定）の切り替え
+ * - 現在の標準 Gemini バージョン（ベースラインモデル名）の常時バッジ表示
+ * - バッチ FinOps モーダル起動および会話セッションリセット操作の提供
+ */
 import React from 'react';
 import { Bot, RotateCcw, Sparkles, Scale, GitCompare, Compass } from 'lucide-react';
 import { CompareModelOption } from '../types';
 
+/** Side-by-Side 比較対象モデルのデフォルト選択肢リスト */
 const DEFAULT_COMPARE_OPTIONS: CompareModelOption[] = [
   { id: 'random', name: '🎲 ランダム比較モード' },
   { id: 'gemini-3.5-flash-lite', name: '3.5-flash-lite' },
@@ -9,6 +21,20 @@ const DEFAULT_COMPARE_OPTIONS: CompareModelOption[] = [
   { id: 'gemini-4-argon', name: '4-argon' },
 ];
 
+/**
+ * Header コンポーネントのプロパティ定義
+ * @property modelName - バックエンドに設定されている現在の標準 Gemini モデル名（例: 'gemini-3.8-flash'）
+ * @property abTestMode - Side-by-Side A/Bテストの発生モード ('auto' | 'always' | 'off')
+ * @property onChangeAbTestMode - A/Bテストモード変更時のコールバック関数
+ * @property compareModel - 選択中の比較対象モデルID
+ * @property onChangeCompareModel - 比較対象モデル変更時のコールバック関数
+ * @property compareOptions - 選択可能な比較対象モデルのリスト（省略時は DEFAULT_COMPARE_OPTIONS）
+ * @property routingMode - ルーティングモード ('auto': 動的ルーティング, 'manual': 標準モデル固定)
+ * @property onChangeRoutingMode - ルーティングモード変更時のコールバック関数
+ * @property onOpenFinOps - バッチ FinOps モーダルを開くコールバック関数（任意）
+ * @property onResetSession - 会話セッションをリセットするコールバック関数
+ * @property isLoading - 応答生成中かどうかのフラグ（ローディング中はリセットボタン等を無効化）
+ */
 interface HeaderProps {
   modelName: string;
   abTestMode: 'auto' | 'always' | 'off';
@@ -23,6 +49,11 @@ interface HeaderProps {
   isLoading: boolean;
 }
 
+/**
+ * アプリケーション上部のメニューバー（ヘッダー）を描画するコンポーネント
+ * @param props - HeaderProps
+ * @returns JSX.Element
+ */
 export const Header: React.FC<HeaderProps> = ({
   modelName,
   abTestMode,
@@ -106,9 +137,10 @@ export const Header: React.FC<HeaderProps> = ({
           </select>
         </div>
 
-        <div className="badge-model" title={routingMode === 'auto' ? '動的ルーティング有効 (3.8-flash ⇄ 3.5-flash-lite)' : '固定モデル'}>
+        {/* Standard Gemini Version Badge: ルーティングモードに関わらず現在の標準モデルバージョンを常時表示 */}
+        <div className="badge-model" title="標準ベースラインモデル">
           <Sparkles size={14} className="sparkle-icon" />
-          <span>{routingMode === 'auto' ? '🧭 動的配信' : `標準: ${modelName}`}</span>
+          <span>標準: {modelName}</span>
           <span className="status-dot"></span>
         </div>
 

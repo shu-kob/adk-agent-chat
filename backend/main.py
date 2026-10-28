@@ -125,7 +125,7 @@ async def get_config():
     return {
         "model": config.GEMINI_MODEL,
         "has_api_key": has_api_key,
-        "default_compare_model": "random",
+        "default_compare_model": getattr(config, "SHADOW_MODEL_ID", "gemini-4-argon"),
         "compare_models": [
             {"id": "random", "name": "🎲 ランダム比較モード"},
             {"id": "gemini-3.5-flash-lite", "name": "3.5-flash-lite"},
