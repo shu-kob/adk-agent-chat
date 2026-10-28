@@ -9,8 +9,8 @@
 import os
 from dotenv import load_dotenv
 
-# .env ファイルから環境変数をロード
-load_dotenv()
+# .env ファイルから環境変数をロード（設定更新を即時反映できるよう override=True を指定）
+load_dotenv(override=True)
 
 # ==============================================================================
 # Google GenAI / Vertex AI 認証設定

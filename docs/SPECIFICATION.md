@@ -139,13 +139,13 @@ backend/
   ```
 
 #### ② `GET /api/config`
-フロントエンド向けのモデル・APIキー設定状態および選択可能な比較対象モデル一覧の取得。
+フロントエンド向けのモデル・APIキー設定状態および選択可能な比較対象モデル一覧の取得。`default_compare_model` には `config.SHADOW_MODEL_ID`（未設定時は `"gemini-4-argon"`）が返却される。
 - **Response (200 OK)**:
   ```json
   {
     "model": "gemini-3.8-flash",
     "has_api_key": true,
-    "default_compare_model": "random",
+    "default_compare_model": "gemini-4-argon",
     "compare_models": [
       { "id": "random", "name": "🎲 ランダム比較モード" },
       { "id": "gemini-3.5-flash-lite", "name": "3.5-flash-lite" },
@@ -222,16 +222,19 @@ frontend/src/
 ├── index.css           # グローバルスタイル (Design System, Variables)
 ├── types.ts            # 共通型定義 (Message, Config, ChatState)
 └── components/
-    ├── Header.tsx      # ヘッダー (タイトル、モデルバッジ、セッションリセットボタン)
-    ├── ChatMessage.tsx # メッセージ表示 (ユーザー/アシスタント吹き出し、ローディングアニメーション)
-    └── ChatInput.tsx   # 入力フォーム (自動フォーカス、Enter 送信、Shift+Enter 改行)
+    ├── Header.tsx               # ヘッダー (タイトル、A/Bテスト・比較対象・ルーティング切替、標準モデルバージョンバッジ常時表示、バッチFinOps起動、セッションリセットボタン)
+    ├── ChatMessage.tsx          # メッセージ表示 (ユーザー/アシスタント吹き出し、動的ルーティングバッジ、ローディングアニメーション)
+    ├── SideBySideComparison.tsx # Side-by-Side ブラインド A/B テスト比較カード・投票 UI
+    ├── BatchFinOpsModal.tsx     # Gemini Batch API (50% OFF) FinOps 試算・バッチジョブ投入モーダル
+    └── ChatInput.tsx            # 入力フォーム (自動フォーカス、Enter 送信、Shift+Enter 改行)
 ```
 
 ### 4.2 状態管理とユーザー体験 (UX)
-- **セッション永続化**: `localStorage` に `adk_chat_session_id` を保持し、ブラウザリロード後も会話継続可能。
-- **リセット機能**: 「New Chat / Reset」ボタンでバックエンドのセッションを破棄し、新しい `session_id` を自動発行。
+- **標準 Gemini バージョンの常時表示**: 上部メニューバー（`Header.tsx`）のモデルバッジ（`.badge-model`）には、ルーティングモード（自動 `auto` / 手動 `manual`）に関わらず、現在の標準ベースライン Gemini バージョン（例: `標準: gemini-3.8-flash`）を常時表示。
+- **セッション永続化**: `sessionStorage` に `adk_chat_session_id` を保持し、同一タブ内でのリロード後も会話継続可能。
+- **リセット機能**: 「会話をリセット」ボタンでバックエンドのセッションを破棄し、新しい `session_id` を自動発行。
 - **自動スクロール**: 新規メッセージ受信時や応答生成時に最新メッセージへスムーズスクロール。
-- **自動接続確認**: アプリ起動時に `/api/config` および `/api/health` を自動ポーリングし、API 疎通状態を確認。
+- **自動設定取得**: アプリ起動時に `/api/config` を呼び出し、現在の標準モデル名（`model`）やデフォルト比較対象モデル（`default_compare_model`）を自動反映。
 
 ---
 

@@ -9,10 +9,15 @@ FastAPI バックエンド API エントリーポイント (backend/main.py)
 
 import uuid
 import random
+import logging
 from typing import Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+# ロガー初期化
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("adk_main")
 
 # 外部設定・エージェントマネージャーの参照
 import config  # config.py から GEMINI_MODEL, GOOGLE_API_KEY, HOST, PORT を参照
@@ -122,10 +127,14 @@ async def get_config():
     フロントエンド向けの設定情報（標準モデル名、APIキー設定有無、比較可能モデルリスト）を返却するエンドポイント
     """
     has_api_key = bool(config.GOOGLE_API_KEY) or config.USE_VERTEXAI
+    logger.info(
+        f"[Config] model={config.GEMINI_MODEL}, vertex_ai={config.USE_VERTEXAI}, "
+        f"project={config.GCP_PROJECT}, location={config.GCP_LOCATION}"
+    )
     return {
         "model": config.GEMINI_MODEL,
         "has_api_key": has_api_key,
-        "default_compare_model": "random",
+        "default_compare_model": getattr(config, "SHADOW_MODEL_ID", "gemini-4-argon"),
         "compare_models": [
             {"id": "random", "name": "🎲 ランダム比較モード"},
             {"id": "gemini-3.5-flash-lite", "name": "3.5-flash-lite"},
@@ -175,15 +184,28 @@ async def chat_endpoint(request: ChatRequest):
         routed_info = route_model_for_query(clean_message)
         target_model = routed_info["model_id"]
 
+    logger.info(
+        f"[Chat] session={session_id[:8]}... input='{clean_message[:40]}' "
+        f"routing={request.routing_mode} target_model={target_model}"
+    )
+
     # 3. 応答生成およびレイテンシ計測
     start_t = time.time()
-    reply = await agent_manager.generate_response(
-        session_id=session_id,
-        prompt=clean_message,
-        user_id=user_id,
-        model_name=target_model
-    )
+    try:
+        reply = await agent_manager.generate_response(
+            session_id=session_id,
+            prompt=clean_message,
+            user_id=user_id,
+            model_name=target_model
+        )
+    except Exception as e:
+        logger.exception(f"[Chat ERROR] generate_response failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Agent error: {str(e)}"
+        )
     latency_ms = int((time.time() - start_t) * 1000)
+    logger.info(f"[Chat] reply generated in {latency_ms}ms (length={len(reply)})")
 
     # 4. 会話履歴へのターン追加
     agent_manager.append_conversation_turn(session_id, "user", clean_message)

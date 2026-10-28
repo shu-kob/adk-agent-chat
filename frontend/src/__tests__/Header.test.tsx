@@ -3,8 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { Header } from '../components/Header';
 
 describe('Header Component', () => {
-  it('renders model name badge, compare target selector and title correctly', () => {
-    render(
+  it('renders standard Gemini version in model badge regardless of routingMode (auto or manual)', () => {
+    const { rerender } = render(
       <Header
         modelName="gemini-3.8-flash"
         abTestMode="auto"
@@ -19,12 +19,28 @@ describe('Header Component', () => {
     );
     
     expect(screen.getByText('ADK Agent Chat')).toBeInTheDocument();
-    expect(screen.getByText('🧭 動的配信')).toBeInTheDocument();
+    expect(screen.getByText('標準: gemini-3.8-flash')).toBeInTheDocument();
     expect(screen.getByText('比較対象:')).toBeInTheDocument();
     expect(screen.getByText('🎲 ランダム比較モード')).toBeInTheDocument();
     expect(screen.getByText('ルーティング:')).toBeInTheDocument();
     expect(screen.getByText('会話をリセット')).toBeInTheDocument();
     expect(screen.getByText('A/Bテスト:')).toBeInTheDocument();
+
+    rerender(
+      <Header
+        modelName="gemini-3.8-flash"
+        abTestMode="auto"
+        onChangeAbTestMode={vi.fn()}
+        compareModel="random"
+        onChangeCompareModel={vi.fn()}
+        routingMode="manual"
+        onChangeRoutingMode={vi.fn()}
+        onResetSession={vi.fn()}
+        isLoading={false}
+      />
+    );
+
+    expect(screen.getByText('標準: gemini-3.8-flash')).toBeInTheDocument();
   });
 
   it('triggers onChangeRoutingMode when routing mode is changed', () => {
